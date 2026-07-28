@@ -1,12 +1,9 @@
-const express = require('express');
 const fetch = require('node-fetch');
-
-const app = express();
-const PORT = process.env.PORT || 10000;
 
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
 ];
 
 function getRandomUserAgent() {
@@ -30,30 +27,27 @@ async function getLiveDomain(testUrls) {
     return testUrls[0];
 }
 
-app.get('*', async (req, res) => {
+module.exports = async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         
         let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
         const host = `https://${hostHeader}`;
-
-        // URL path ya query se play ID nikalne ka secure tarika
-        let urlPath = req.url || '';
-        let playId = null;
         
-        if (req.query && req.query.play) {
-            playId = req.query.play;
-        } else {
+        let play = req.query && req.query.play ? req.query.play : null;
+        let urlPath = req.url || '';
+        
+        if (!play) {
             const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
             if (matchId && matchId[1] && matchId[1] !== 'speedo') {
-                playId = matchId[1];
+                play = matchId[1];
             }
         }
 
         // --- PLAY MODE ---
-        if (playId) {
-            let play = playId.replace('.m3u8', '').replace('.html', '');
+        if (play) {
+            play = play.replace('.m3u8', '').replace('.html', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
@@ -78,11 +72,12 @@ app.get('*', async (req, res) => {
             clearTimeout(timeoutId);
 
             if (!streamRes.ok) {
-                return res.status(404).send("Stream source not reachable");
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status}`);
             }
 
             const source = await streamRes.text();
             
+            // Ab yeh regex is HTML ke andar se exact master.m3u8 link nikal lega
             const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
                           source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
@@ -100,7 +95,7 @@ app.get('*', async (req, res) => {
         });
         
         if (!jsonRes.ok) {
-            throw new Error(`Worker returned status ${jsonRes.status}`);
+            throw new Error(`Firebase returned status ${jsonRes.status}`);
         }
         
         let text = await jsonRes.text();
@@ -141,8 +136,4 @@ app.get('*', async (req, res) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
-});
-
-app.listen(PORT, () => {
-    console.log(`Express server is running on port ${PORT}`);
-});
+};
