@@ -1,28 +1,32 @@
-function unpack(code) {
-    try {
-        const evalPattern = /eval\(function\(p,a,c,k,e,d\).+?\}\('(.+?)',(\d+),(\d+),'(.+?)'\.split\('\|'\)\)\)/;
-        const evalContent = code.match(evalPattern);
-        if (evalContent) {
-            let [_, p, a, c, k] = evalContent;
-            a = parseInt(a); c = parseInt(c); k = k.split('|');
-            while (c--) { if (k[c]) p = p.replace(new RegExp('\\b' + c.toString(a) + '\\b', 'g'), k[c]); }
-            return p;
-        }
-    } catch (e) {}
-    return code;
+const fetch = require('node-fetch');
+
+const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15"
+];
+
+function getRandomUserAgent() {
+    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
 async function getLiveDomain(testUrls) {
     for (let url of testUrls) {
         try {
-            const res = await fetch(url, { method: 'HEAD' });
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(url, { 
+                method: 'HEAD',
+                headers: { "User-Agent": getRandomUserAgent() },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
             if (res.ok) return new URL(res.url).origin + "/";
         } catch (e) {}
     }
     return testUrls[0];
 }
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     
@@ -30,34 +34,58 @@ export default async function handler(req, res) {
     const host = `https://${req.headers.host}`;
 
     try {
+        // --- PLAY MODE ---
         if (play) {
-            play = play.replace('.m3u8', '');
+            play = play.replace('.m3u8', '').replace('.html', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+            const cleanOrigin = officialSite.replace(/\/$/, "");
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const streamRes = await fetch(embedUrl, {
                 headers: { 
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36", 
-                    "Referer": officialSite 
-                }
+                    "Host": new URL(streamBase).host,
+                    "Connection": "keep-alive",
+                    "Cache-Control": "max-age=0",
+                    "User-Agent": getRandomUserAgent(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Referer": officialSite,
+                    "Origin": cleanOrigin,
+                    "Accept-Language": "en-US,en;q=0.9"
+                },
+                signal: controller.signal
             });
+            clearTimeout(timeoutId);
+
+            if (!streamRes.ok) {
+                return res.status(404).send("Stream source not reachable");
+            }
 
             const source = await streamRes.text();
-            const decoded = unpack(source);
-            const m3u8Regex = /(https?[:\/\/\w\.\-\%\!\?\&\=\,]+?\.m3u8[^\s"']*)/i;
-            const match = decoded.match(m3u8Regex) || source.match(m3u8Regex);
+            
+            // Yahan hum direct master.m3u8 link ko dhoond rahe hain jo HTML ke andar hai
+            const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
+                          source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
-            if (match) {
+            if (match && match[1]) {
                 const finalM3u8 = match[1].replace(/\\/g, '');
+                // Master m3u8 milte hi direct redirect kar do
                 return res.redirect(302, finalM3u8);
             }
-            return res.status(404).send("Link not found");
+
+            return res.status(404).send("Master M3U8 Link not found inside embed source");
         }
 
-        const jsonRes = await fetch("https://autumn-cake-618e.poonamchouhan076.workers.dev/");
+        // --- LIST MODE ---
+        const jsonRes = await fetch("https://autumn-cake-618e.poonamchouhan076.workers.dev/", {
+            headers: { "User-Agent": getRandomUserAgent() }
+        });
+        
         if (!jsonRes.ok) {
-            throw new Error(`Database returned status ${jsonRes.status}`);
+            throw new Error(`Firebase returned status ${jsonRes.status}`);
         }
         
         let text = await jsonRes.text();
@@ -73,26 +101,22 @@ export default async function handler(req, res) {
             return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
         }
 
-        const headersuffix = "|Referer=https://speedostream1.com/&Origin=https://speedostream1.com";
+        const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+        const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
         let playlist = "#EXTM3U\n";
 
+        const processItem = (item) => {
+            if (item && item.id) {
+                const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
+                const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
+                playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
+            }
+        };
+
         if (Array.isArray(data)) {
-            data.forEach(item => {
-                if (item && item.id) {
-                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
-                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-                }
-            });
+            data.forEach(processItem);
         } else if (data && typeof data === 'object') {
-            Object.keys(data).forEach(key => {
-                const item = data[key];
-                if (item && item.id) {
-                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
-                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-                }
-            });
+            Object.keys(data).forEach(key => processItem(data[key]));
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
