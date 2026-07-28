@@ -1,8 +1,4 @@
-const express = require('express');
-const app = express();
-const PORT = process.env.PORT || 10000;
-
-app.get('/', async (req, res) => {
+export default async function handler(req, res) {
   const originalJsonUrl = "https://black-sea-7b13.poonamchouhan076.workers.dev/";
 
   try {
@@ -21,7 +17,7 @@ app.get('/', async (req, res) => {
       const batch = movies.slice(i, i + batchSize);
       
       const batchResult = await Promise.all(
-        batch.map(async (movie) => { // Yahan renderMap ki jagah map kar diya gaya hai
+        batch.map(async (movie) => {
           try {
             if (!movie.href) return movie;
 
@@ -90,13 +86,9 @@ app.get('/', async (req, res) => {
     };
 
     res.setHeader("Access-Control-Allow-Origin", "*");
-    return res.json(finalResult);
+    return res.status(200).json(finalResult);
 
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
-});
-
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+}
