@@ -1,4 +1,7 @@
+const express = require('express');
 const fetch = require('node-fetch');
+const app = express();
+const PORT = process.env.PORT || 10000;
 
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -26,103 +29,158 @@ async function getLiveDomain(testUrls) {
     return testUrls[0];
 }
 
-module.exports = async (req, res) => {
+// --- 1. PLAY / STREAM ROUTE (Jab koi movie play karega) ---
+app.get('/play/:id', async (req, res) => {
     try {
-        res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-        
-        let play = req.query && req.query.play ? req.query.play : null;
-        let hostHeader = req.headers && req.headers.host ? req.headers.host : 'localhost';
-        const host = `https://${hostHeader}`;
+        let playId = req.params.id.replace('.m3u8', '').replace('.html', '');
+        const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
+        const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+        const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${playId}.html`;
+        const cleanOrigin = officialSite.replace(/\/$/, "");
 
-        // --- PLAY MODE ---
-        if (play) {
-            play = play.replace('.m3u8', '').replace('.html', '');
-            const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
-            const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-            const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
-            const cleanOrigin = officialSite.replace(/\/$/, "");
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-            const streamRes = await fetch(embedUrl, {
-                headers: { 
-                    "Host": new URL(streamBase).host,
-                    "Connection": "keep-alive",
-                    "Cache-Control": "max-age=0",
-                    "User-Agent": getRandomUserAgent(),
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                    "Referer": officialSite,
-                    "Origin": cleanOrigin,
-                    "Accept-Language": "en-US,en;q=0.9"
-                },
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            if (!streamRes.ok) {
-                return res.status(404).send("Stream source not reachable");
-            }
-
-            const source = await streamRes.text();
-            
-            const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
-                          source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
-
-            if (match && match[1]) {
-                const finalM3u8 = match[1].replace(/\\/g, '');
-                return res.redirect(302, finalM3u8);
-            }
-
-            return res.status(404).send("Master M3U8 Link not found inside embed source");
-        }
-
-        // --- LIST MODE ---
-        const jsonRes = await fetch("https://autumn-cake-618e.poonamchouhan076.workers.dev/", {
-            headers: { "User-Agent": getRandomUserAgent() }
+        const streamRes = await fetch(embedUrl, {
+            headers: { 
+                "Host": new URL(streamBase).host,
+                "Connection": "keep-alive",
+                "Cache-Control": "max-age=0",
+                "User-Agent": getRandomUserAgent(),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                "Referer": officialSite,
+                "Origin": cleanOrigin,
+                "Accept-Language": "en-US,en;q=0.9"
+            },
+            signal: controller.signal
         });
-        
-        if (!jsonRes.ok) {
-            throw new Error(`Worker returned status ${jsonRes.status}`);
-        }
-        
-        let text = await jsonRes.text();
-        
-        try {
-            text = text.replace(/,[ \t\r\n]*([\]}])/g, '$1');
-        } catch(err) {}
+        clearTimeout(timeoutId);
 
-        let data;
-        try {
-            data = JSON.parse(text);
-        } catch (parseErr) {
-            return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
+        if (!streamRes.ok) {
+            return res.status(404).send("Stream source not reachable");
         }
 
-        const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-        const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
-        let playlist = "#EXTM3U\n";
+        const source = await streamRes.text();
+        
+        // HTML ke andar se master.m3u8 link nikalna
+        const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
+                      source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
-        const processItem = (item) => {
-            if (item && item.id) {
-                const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
-                playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-            }
-        };
-
-        if (Array.isArray(data)) {
-            data.forEach(processItem);
-        } else if (data && typeof data === 'object') {
-            Object.keys(data).forEach(key => processItem(data[key]));
+        if (match && match[1]) {
+            const finalM3u8 = match[1].replace(/\\/g, '');
+            return res.redirect(302, finalM3u8);
         }
 
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(200).send(playlist);
+        return res.status(404).send("Master M3U8 Link not found inside embed source");
 
     } catch (err) {
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
+        return res.status(500).send("Error: " + err.message);
     }
-};
+});
+
+// --- 2. MAIN M3U / JSON LIST ROUTE ---
+app.get('/', async (req, res) => {
+  const originalJsonUrl = "https://black-sea-7b13.poonamchouhan076.workers.dev/";
+  let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
+  const host = `https://${hostHeader}`;
+
+  try {
+    const response = await fetch(originalJsonUrl, {
+        headers: { "User-Agent": getRandomUserAgent() }
+    });
+    const jsonData = await response.json();
+
+    if (!jsonData.data || !Array.isArray(jsonData.data)) {
+      return res.status(400).json({ error: "Invalid JSON structure" });
+    }
+
+    const movies = jsonData.data;
+    const batchSize = 10; 
+    let updatedData = [];
+
+    for (let i = 0; i < movies.length; i += batchSize) {
+      const batch = movies.slice(i, i + batchSize);
+      
+      const batchResult = await Promise.all(
+        batch.map(async (movie) => {
+          try {
+            if (!movie.href) return movie;
+
+            const pageRes = await fetch(movie.href, {
+                headers: { "User-Agent": getRandomUserAgent() }
+            });
+            const htmlText = await pageRes.text();
+
+            let targetEmbedId = null;
+            const iframeMatches = [...htmlText.matchAll(/<iframe[^>]+src=["']([^"']+)["']/gi)];
+            
+            if (iframeMatches.length > 0) {
+              let selectedIframeUrl = iframeMatches[0][1];
+
+              if (htmlText.includes("HD 1080p")) {
+                const match1080Tab = htmlText.match(/href=["'](#[^"']+)["'][^>]*>\s*HD 1080p/i);
+                if (match1080Tab) {
+                  const tabId = match1080Tab[1];
+                  const tabDivRegex = new RegExp(`<div[^>]+id=["']${tabId.replace('#', '')}["'][^>]*>([\\s\\S]*?)<\/div>`, 'i');
+                  const tabDivMatch = htmlText.match(tabDivRegex);
+                  if (tabDivMatch) {
+                    const iframeInTab = tabDivMatch[1].match(/src=["']([^"']+)["']/i);
+                    if (iframeInTab) selectedIframeUrl = iframeInTab[1];
+                  }
+                }
+              } else if (htmlText.includes("HD 720p")) {
+                const match720Tab = htmlText.match(/href=["'](#[^"']+)["'][^>]*>\s*HD 720p/i);
+                if (match720Tab) {
+                  const tabId = match720Tab[1];
+                  const tabDivRegex = new RegExp(`<div[^>]+id=["']${tabId.replace('#', '')}["'][^>]*>([\\s\\S]*?)<\/div>`, 'i');
+                  const tabDivMatch = htmlText.match(tabDivRegex);
+                  if (tabDivMatch) {
+                    const iframeInTab = tabDivMatch[1].match(/src=["']([^"']+)["']/i);
+                    if (iframeInTab) selectedIframeUrl = iframeInTab[1];
+                  }
+                }
+              }
+
+              const idMatch = selectedIframeUrl.match(/(?:embed-)?([a-zA-Z0-9]+)\.html/i);
+              if (idMatch && idMatch[1]) {
+                targetEmbedId = idMatch[1];
+              }
+            }
+
+            let finalHref = movie.href;
+            if (targetEmbedId) {
+              // Yahan humne apne server ka play link set kar diya hai
+              finalHref = `${host}/play/${targetEmbedId}.m3u8`; 
+            }
+
+            return {
+              ...movie,
+              href: finalHref
+            };
+
+          } catch (err) {
+            return movie;
+          }
+        })
+      );
+
+      updatedData.push(...batchResult);
+    }
+
+    const finalResult = {
+      status: jsonData.status || "success",
+      total: updatedData.length,
+      data: updatedData
+    };
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    return res.json(finalResult);
+
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
+});
