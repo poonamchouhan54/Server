@@ -1,6 +1,9 @@
+const fetch = require('node-fetch');
+
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15"
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
 ];
 
 function getRandomUserAgent() {
@@ -24,7 +27,7 @@ async function getLiveDomain(testUrls) {
     return testUrls[0];
 }
 
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -33,6 +36,14 @@ export default async function handler(req, res) {
         const host = `https://${hostHeader}`;
         
         let play = req.query && req.query.play ? req.query.play : null;
+        let urlPath = req.url || '';
+        
+        if (!play) {
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+            if (matchId && matchId[1] && matchId[1] !== 'speedo') {
+                play = matchId[1];
+            }
+        }
 
         // --- PLAY MODE ---
         if (play) {
@@ -61,11 +72,12 @@ export default async function handler(req, res) {
             clearTimeout(timeoutId);
 
             if (!streamRes.ok) {
-                return res.status(404).send("Stream source not reachable");
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status}`);
             }
 
             const source = await streamRes.text();
             
+            // Ab yeh regex is HTML ke andar se exact master.m3u8 link nikal lega
             const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
                           source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
@@ -78,7 +90,7 @@ export default async function handler(req, res) {
         }
 
         // --- LIST MODE ---
-        const jsonRes = await fetch("https://autumn-cake-618e.poonamchouhan076.workers.dev/", {
+        const jsonRes = await fetch("https://ipl2020-46d2f.firebaseio.com/Json.json", {
             headers: { "User-Agent": getRandomUserAgent() }
         });
         
@@ -99,32 +111,29 @@ export default async function handler(req, res) {
             return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
         }
 
-        const headersuffix = "|Referer=https://speedostream1.com/&Origin=https://speedostream1.com";
+        const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+        const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
         let playlist = "#EXTM3U\n";
 
+        const processItem = (item) => {
+            if (item && item.id) {
+                const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
+                const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
+                playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
+            }
+        };
+
         if (Array.isArray(data)) {
-            data.forEach(item => {
-                if (item && item.id) {
-                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
-                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-                }
-            });
+            data.forEach(processItem);
         } else if (data && typeof data === 'object') {
-            Object.keys(data).forEach(key => {
-                const item = data[key];
-                if (item && item.id) {
-                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
-                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-                }
-            });
+            Object.keys(data).forEach(key => processItem(data[key]));
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(playlist);
 
     } catch (err) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
