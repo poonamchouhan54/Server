@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15"
@@ -26,12 +24,11 @@ async function getLiveDomain(testUrls) {
     return testUrls[0];
 }
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         
-        // Vercel par host safely nikalne ke liye
         let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
         const host = `https://${hostHeader}`;
         
@@ -102,30 +99,32 @@ module.exports = async (req, res) => {
             return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
         }
 
-        const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-        const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
+        const headersuffix = "|Referer=https://speedostream1.com/&Origin=https://speedostream1.com";
         let playlist = "#EXTM3U\n";
 
-        const processItem = (item) => {
-            if (item && item.id) {
-                const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                // Vercel ke liye query link format
-                const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
-                playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
-            }
-        };
-
         if (Array.isArray(data)) {
-            data.forEach(processItem);
+            data.forEach(item => {
+                if (item && item.id) {
+                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
+                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
+                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
+                }
+            });
         } else if (data && typeof data === 'object') {
-            Object.keys(data).forEach(key => processItem(data[key]));
+            Object.keys(data).forEach(key => {
+                const item = data[key];
+                if (item && item.id) {
+                    const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
+                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
+                    playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
+                }
+            });
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(playlist);
 
     } catch (err) {
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
