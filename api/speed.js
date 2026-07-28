@@ -27,13 +27,14 @@ async function getLiveDomain(testUrls) {
 }
 
 module.exports = async (req, res) => {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
-    
-    let { play } = req.query;
-    const host = `https://${req.headers.host}`;
-
     try {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
+        
+        let play = req.query && req.query.play ? req.query.play : null;
+        let hostHeader = req.headers && req.headers.host ? req.headers.host : 'localhost';
+        const host = `https://${hostHeader}`;
+
         // --- PLAY MODE ---
         if (play) {
             play = play.replace('.m3u8', '').replace('.html', '');
@@ -66,13 +67,11 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            // Yahan hum direct master.m3u8 link ko dhoond rahe hain jo HTML ke andar hai
             const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
                           source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
             if (match && match[1]) {
                 const finalM3u8 = match[1].replace(/\\/g, '');
-                // Master m3u8 milte hi direct redirect kar do
                 return res.redirect(302, finalM3u8);
             }
 
@@ -85,7 +84,7 @@ module.exports = async (req, res) => {
         });
         
         if (!jsonRes.ok) {
-            throw new Error(`Firebase returned status ${jsonRes.status}`);
+            throw new Error(`Worker returned status ${jsonRes.status}`);
         }
         
         let text = await jsonRes.text();
@@ -123,6 +122,7 @@ module.exports = async (req, res) => {
         return res.status(200).send(playlist);
 
     } catch (err) {
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
