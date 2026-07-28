@@ -1,5 +1,3 @@
-const fetch = require('node-fetch');
-
 function unpack(code) {
     try {
         const evalPattern = /eval\(function\(p,a,c,k,e,d\).+?\}\('(.+?)',(\d+),(\d+),'(.+?)'\.split\('\|'\)\)\)/;
@@ -17,7 +15,6 @@ function unpack(code) {
 async function getLiveDomain(testUrls) {
     for (let url of testUrls) {
         try {
-            // node-fetch mein timeout handle karne ke liye AbortSignal ka use karein ya bina timeout ke test karein
             const res = await fetch(url, { method: 'HEAD' });
             if (res.ok) return new URL(res.url).origin + "/";
         } catch (e) {}
@@ -25,8 +22,7 @@ async function getLiveDomain(testUrls) {
     return testUrls[0];
 }
 
-module.exports = async (req, res) => {
-    // CORS headers basic allow-all
+export default async function handler(req, res) {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     
@@ -34,7 +30,6 @@ module.exports = async (req, res) => {
     const host = `https://${req.headers.host}`;
 
     try {
-        // --- PLAY MODE ---
         if (play) {
             play = play.replace('.m3u8', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
@@ -60,15 +55,13 @@ module.exports = async (req, res) => {
             return res.status(404).send("Link not found");
         }
 
-        // --- LIST MODE ---
         const jsonRes = await fetch("https://autumn-cake-618e.poonamchouhan076.workers.dev/");
         if (!jsonRes.ok) {
-            throw new Error(`Firebase returned status ${jsonRes.status}`);
+            throw new Error(`Database returned status ${jsonRes.status}`);
         }
         
         let text = await jsonRes.text();
         
-        // Trailing commas remove karne ke liye safe cleaner
         try {
             text = text.replace(/,[ \t\r\n]*([\]}])/g, '$1');
         } catch(err) {}
@@ -77,7 +70,7 @@ module.exports = async (req, res) => {
         try {
             data = JSON.parse(text);
         } catch (parseErr) {
-            return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed. Check database response.");
+            return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
         }
 
         const headersuffix = "|Referer=https://speedostream1.com/&Origin=https://speedostream1.com";
@@ -87,17 +80,16 @@ module.exports = async (req, res) => {
             data.forEach(item => {
                 if (item && item.id) {
                     const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
+                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
                     playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
                 }
             });
         } else if (data && typeof data === 'object') {
-            // Agar Firebase ka data object roop mein aa raha hai toh:
             Object.keys(data).forEach(key => {
                 const item = data[key];
                 if (item && item.id) {
                     const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
-                    const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
+                    const playLink = `${host}/api/speedo?play=${cleanId}.m3u8${headersuffix}`;
                     playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
                 }
             });
@@ -107,7 +99,6 @@ module.exports = async (req, res) => {
         return res.status(200).send(playlist);
 
     } catch (err) {
-        // Taaki crash hone par error message M3U ke andhar saaf dikhe
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
