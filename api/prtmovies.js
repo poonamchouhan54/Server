@@ -9,9 +9,16 @@ const server = http.createServer(async (req, res) => {
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Content-Type', 'application/json;charset=UTF-8');
 
+    // Agar request favicon ki hai, toh chupचाप 204 bhej do taaki error na aaye
+    if (req.url === '/favicon.ico') {
+        res.writeHead(204);
+        res.end();
+        return;
+    }
+
     if (req.url === '/' || req.url === '/movies') {
         try {
-            // Target Worker se HTML fetch karo node-fetch ke zariye
+            // Target Worker से HTML fetch karo node-fetch ke zariye
             const response = await fetch(TARGET_URL);
             if (!response.ok) {
                 throw new Error(`Worker returned status ${response.status}`);
@@ -46,7 +53,7 @@ const server = http.createServer(async (req, res) => {
         }
     } else {
         res.writeHead(404);
-        res.end(JSON.stringify({ status: 'error', message: 'Endpoint not found' }));
+        res.end(JSON.stringify({ status: 'error', message: 'Endpoint not found. Use / or /movies' }));
     }
 });
 
