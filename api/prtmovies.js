@@ -1,6 +1,6 @@
 const fetch = require('node-fetch');
 
-const TARGET_URL = 'https://prmovies-domain-a250.poonamchouhan076.workers.dev/';
+const TARGET_URL = 'https://prmovies-domain-a250.poonamchouhan076.workers.dev/?s=behind+the+door';
 
 module.exports = async (req, res) => {
     // CORS headers add karna taaki kahin se bhi access ho sake
