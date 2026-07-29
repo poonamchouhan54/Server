@@ -1,5 +1,5 @@
 const http = require('http');
-const axios = require('axios');
+const fetch = require('node-fetch');
 
 const PORT = process.env.PORT || 3000;
 const TARGET_URL = 'https://prmovies-domain-a250.poonamchouhan076.workers.dev/';
@@ -11,9 +11,12 @@ const server = http.createServer(async (req, res) => {
 
     if (req.url === '/' || req.url === '/movies') {
         try {
-            // Target Worker se HTML fetch karo
-            const response = await axios.get(TARGET_URL);
-            const htmlContent = response.data;
+            // Target Worker se HTML fetch karo node-fetch ke zariye
+            const response = await fetch(TARGET_URL);
+            if (!response.ok) {
+                throw new Error(`Worker returned status ${response.status}`);
+            }
+            const htmlContent = await response.text();
 
             const movies = [];
             const mlItems = htmlContent.split('class="ml-item"');
