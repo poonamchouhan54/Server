@@ -50,9 +50,9 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Official Site Header Protection Bypass & View Source) ---
+        // --- PLAY MODE (Using prmovies.locker & View Source) ---
         if (play) {
-            play = play.replace('.m3u8', '').replace('.html', '');
+            play = play.replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '');
             const officialSite = "https://prmovies.locker/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
