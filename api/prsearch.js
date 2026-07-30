@@ -42,7 +42,6 @@ module.exports = async (req, res) => {
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
-        // Agar URL path se play ID nikalni pade
         if (!play) {
             let urlPath = req.url || '';
             const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
@@ -156,7 +155,7 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(playlist);
 
-    } caught (err) {
+    } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
