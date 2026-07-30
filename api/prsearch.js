@@ -42,7 +42,16 @@ module.exports = async (req, res) => {
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
-        // --- PLAY MODE (Jab user kisi movie par click karega) ---
+        // Agar URL path se play ID nikalni pade
+        if (!play) {
+            let urlPath = req.url || '';
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+            if (matchId && matchId[1]) {
+                play = matchId[1];
+            }
+        }
+        
+        // --- PLAY MODE ---
         if (play) {
             play = play.replace('.m3u8', '').replace('.html', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
@@ -123,7 +132,6 @@ module.exports = async (req, res) => {
                     continue;
                 }
 
-                // Background mein detail page fetch karke iframe ID nikalna
                 try {
                     const detailRes = await fetch(movieHref, {
                         headers: { "User-Agent": getRandomUserAgent() }
@@ -148,7 +156,7 @@ module.exports = async (req, res) => {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(playlist);
 
-    } catch (err) {
+    } caught (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
