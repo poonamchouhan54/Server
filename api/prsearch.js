@@ -50,9 +50,11 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Using prmovies.locker & View Source) ---
+        // --- PLAY MODE ---
         if (play) {
-            play = play.replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '');
+            // Fix: Agar play string mein '|' ya extra parameters aa jayein, toh sirf ID nikalein
+            play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
+            
             const officialSite = "https://prmovies.locker/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
