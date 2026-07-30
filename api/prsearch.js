@@ -147,7 +147,8 @@ module.exports = async (req, res) => {
                             const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
-                                const playLink = `${host}/?play=${embedId}${headersuffix}`;
+                                // Player ke liye link ab direct .m3u8 format mein banega
+                                const playLink = `${host}/${embedId}.m3u8${headersuffix}`;
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="Movies",${title}\n${playLink}\n`;
                             }
