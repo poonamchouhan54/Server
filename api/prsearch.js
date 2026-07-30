@@ -50,10 +50,10 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Debugging: View Source Code) ---
+        // --- PLAY MODE (Official Site Header Protection Bypass & View Source) ---
         if (play) {
             play = play.replace('.m3u8', '').replace('.html', '');
-            const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
+            const officialSite = "https://prmovies.locker/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
             const cleanOrigin = officialSite.replace(/\/$/, "");
@@ -70,6 +70,9 @@ module.exports = async (req, res) => {
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                     "Referer": officialSite,
                     "Origin": cleanOrigin,
+                    "Sec-Fetch-Dest": "iframe",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
                     "Accept-Language": "en-US,en;q=0.9"
                 },
                 signal: controller.signal
@@ -77,7 +80,7 @@ module.exports = async (req, res) => {
             clearTimeout(timeoutId);
 
             if (!streamRes.ok) {
-                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status}`);
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status} | URL: ${embedUrl}`);
             }
 
             const source = await streamRes.text();
