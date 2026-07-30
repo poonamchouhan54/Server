@@ -106,7 +106,8 @@ module.exports = async (req, res) => {
 
         const htmlContent = await htmlRes.text();
         const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-        const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
+        const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
+        const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
         let playlist = "#EXTM3U\n";
 
         const mlItems = htmlContent.split('class="ml-item"');
