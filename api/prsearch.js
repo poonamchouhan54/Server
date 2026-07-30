@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE ---
+        // --- PLAY MODE (Exact Speedo style extraction) ---
         if (play) {
             play = play.replace('.m3u8', '').replace('.html', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
@@ -82,8 +82,17 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
-                          source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
+            // Speedo/Embed source code se link nikalne ke liye saare possible patterns
+            let match = source.match(/file\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
+                        source.match(/sources\s*:\s*\[\s*\{\s*file\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
+                        source.match(/src\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
+                        source.match(/["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
+                        source.match(/(https?:\/\/[^\s"'<>]+?\/master\.m3u8[^\s"'<>]*)/i);
+
+            // Agar .m3u8 direct na mile toh koi bhi hls/stream URL dhoondo
+            if (!match) {
+                match = source.match(/["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/i);
+            }
 
             if (match && match[1]) {
                 const finalM3u8 = match[1].replace(/\\/g, '');
