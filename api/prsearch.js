@@ -50,9 +50,8 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE ---
+        // --- PLAY MODE (Extracts .m3u8 and redirects) ---
         if (play) {
-            // Fix: Agar play string mein '|' ya extra parameters aa jayein, toh sirf ID nikalein
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
             const officialSite = "https://prmovies.locker/";
@@ -87,8 +86,15 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(`<pre>${source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`);
+            // Regex se .m3u8 direct video stream link extract karein
+            const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+
+            if (m3u8Match && m3u8Match[1]) {
+                const videoUrl = m3u8Match[1];
+                return res.redirect(302, videoUrl);
+            }
+
+            return res.status(404).send("Video stream link (.m3u8) not found in the source!");
         }
 
         // --- LIST / SEARCH MODE ---
