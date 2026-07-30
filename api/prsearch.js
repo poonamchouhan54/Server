@@ -40,20 +40,19 @@ module.exports = async (req, res) => {
         const host = `https://${hostHeader}`;
         
         let play = req.query && req.query.play ? req.query.play : null;
-        let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
+        let urlPath = req.url || '';
         
         if (!play) {
-            let urlPath = req.url || '';
             const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
-            if (matchId && matchId[1]) {
+            if (matchId && matchId[1] && matchId[1] !== 'speedo') {
                 play = matchId[1];
             }
         }
-        
-        // --- PLAY MODE (Using prmovies.locker & View Source) ---
+
+        // --- PLAY MODE ---
         if (play) {
-            play = play.replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '');
-            const officialSite = "https://prmovies.locker/";
+            play = play.replace('.m3u8', '').replace('.html', '');
+            const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
             const cleanOrigin = officialSite.replace(/\/$/, "");
@@ -70,9 +69,6 @@ module.exports = async (req, res) => {
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
                     "Referer": officialSite,
                     "Origin": cleanOrigin,
-                    "Sec-Fetch-Dest": "iframe",
-                    "Sec-Fetch-Mode": "navigate",
-                    "Sec-Fetch-Site": "cross-site",
                     "Accept-Language": "en-US,en;q=0.9"
                 },
                 signal: controller.signal
@@ -80,72 +76,61 @@ module.exports = async (req, res) => {
             clearTimeout(timeoutId);
 
             if (!streamRes.ok) {
-                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status} | URL: ${embedUrl}`);
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status}`);
             }
 
             const source = await streamRes.text();
             
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(200).send(`<pre>${source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`);
+            // Regex to extract exact master.m3u8 link from embed source
+            const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
+                          source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
+
+            if (match && match[1]) {
+                const finalM3u8 = match[1].replace(/\\/g, '');
+                return res.redirect(302, finalM3u8);
+            }
+
+            return res.status(404).send("Master M3U8 Link not found inside embed source");
         }
 
-        // --- LIST / SEARCH MODE ---
-        const targetBaseUrl = 'https://prmovies-domain-a250.poonamchouhan076.workers.dev/';
-        let targetUrl = targetBaseUrl;
-        if (searchQuery) {
-            targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
-        }
-
-        const htmlRes = await fetch(targetUrl, {
+        // --- LIST MODE ---
+        const jsonRes = await fetch("https://ipl2020-46d2f.firebaseio.com/Json.json", {
             headers: { "User-Agent": getRandomUserAgent() }
         });
+        
+        if (!jsonRes.ok) {
+            throw new Error(`Firebase returned status ${jsonRes.status}`);
+        }
+        
+        let text = await jsonRes.text();
+        
+        try {
+            text = text.replace(/,[ \t\r\n]*([\]}])/g, '$1');
+        } catch(err) {}
 
-        if (!htmlRes.ok) {
-            throw new Error(`Target worker returned status ${htmlRes.status}`);
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (parseErr) {
+            return res.status(500).send("#EXTM3U\n#ERROR: JSON Parsing Failed.");
         }
 
-        const htmlContent = await htmlRes.text();
         const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
         const headersuffix = `|Referer=${streamBaseLive}&Origin=${streamBaseLive.replace(/\/$/, "")}`;
         let playlist = "#EXTM3U\n";
 
-        const mlItems = htmlContent.split('class="ml-item"');
-
-        for (let index = 0; index < mlItems.length; index++) {
-            if (index === 0) continue;
-            const item = mlItems[index];
-
-            const hrefMatch = item.match(/<a\s+href="([^"]+)"/);
-            const imgMatch = item.match(/data-original="([^"]+)"/);
-            const titleMatch = item.match(/<h2>([\s\S]*?)<\/h2>/);
-
-            if (titleMatch && hrefMatch) {
-                const title = titleMatch[1].trim();
-                const movieHref = hrefMatch[1];
-
-                if (searchQuery && !title.toLowerCase().includes(searchQuery)) {
-                    continue;
-                }
-
-                try {
-                    const detailRes = await fetch(movieHref, {
-                        headers: { "User-Agent": getRandomUserAgent() }
-                    });
-                    if (detailRes.ok) {
-                        const detailHtml = await detailRes.text();
-                        const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
-                        if (iframeMatch && iframeMatch[1]) {
-                            const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
-                            if (idMatch && idMatch[1]) {
-                                const embedId = idMatch[1];
-                                const playLink = `${host}/?play=${embedId}${headersuffix}`;
-                                const logo = imgMatch ? imgMatch[1] : '';
-                                playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="Movies",${title}\n${playLink}\n`;
-                            }
-                        }
-                    }
-                } catch (err) {}
+        const processItem = (item) => {
+            if (item && item.id) {
+                const cleanId = item.id.replace(/[^a-zA-Z0-9]/g, '');
+                const playLink = `${host}/api/speedo/${cleanId}.m3u8${headersuffix}`;
+                playlist += `#EXTINF:-1 tvg-id="${item.id}" tvg-logo="${item.logo || ''}" group-title="${item.group || 'Movies'}",${item.name || 'No Name'}\n${playLink}\n`;
             }
+        };
+
+        if (Array.isArray(data)) {
+            data.forEach(processItem);
+        } else if (data && typeof data === 'object') {
+            Object.keys(data).forEach(key => processItem(data[key]));
         }
 
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
