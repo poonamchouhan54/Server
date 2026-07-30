@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Exact Speedo style extraction) ---
+        // --- PLAY MODE (Debugging: View Source Code) ---
         if (play) {
             play = play.replace('.m3u8', '').replace('.html', '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
@@ -82,24 +82,8 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            // Speedo/Embed source code se link nikalne ke liye saare possible patterns
-            let match = source.match(/file\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
-                        source.match(/sources\s*:\s*\[\s*\{\s*file\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
-                        source.match(/src\s*:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
-                        source.match(/["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) ||
-                        source.match(/(https?:\/\/[^\s"'<>]+?\/master\.m3u8[^\s"'<>]*)/i);
-
-            // Agar .m3u8 direct na mile toh koi bhi hls/stream URL dhoondo
-            if (!match) {
-                match = source.match(/["'](https?:\/\/[^"']+\.m3u8[^"']*)["']/i);
-            }
-
-            if (match && match[1]) {
-                const finalM3u8 = match[1].replace(/\\/g, '');
-                return res.redirect(302, finalM3u8);
-            }
-
-            return res.status(404).send("#EXTM3U\n#ERROR: Master M3U8 Link not found inside embed source");
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            return res.status(200).send(`<pre>${source.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</pre>`);
         }
 
         // --- LIST / SEARCH MODE ---
