@@ -51,7 +51,7 @@ module.exports = async (req, res) => {
 
         // --- PLAY MODE ---
         if (play) {
-            play = play.replace('.m3u8', '').replace('.html', '');
+            play = play.replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '');
             const officialSite = await getLiveDomain(["https://prmovies.locker/", "https://yomovies.foundation/"]);
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
@@ -81,7 +81,6 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            // Regex to extract exact master.m3u8 link from embed source
             const match = source.match(/file:\s*["'](https?:\/\/[^"']+\/master\.m3u8[^"']*)["']/i) || 
                           source.match(/(https?:\/\/[^"']+\/master\.m3u8[^\s"']*)/i);
 
