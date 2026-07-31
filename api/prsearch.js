@@ -98,7 +98,7 @@ module.exports = async (req, res) => {
         }
 
         // --- LIST / SEARCH MODE ---
-        const targetBaseUrl = 'https://autumn-frog-d877.poonamchouhan076.workers.dev/';
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://prmovies.locker';
         let targetUrl = targetBaseUrl;
         if (searchQuery) {
             targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
