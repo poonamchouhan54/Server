@@ -45,7 +45,7 @@ module.exports = async (req, res) => {
         }
 
         const db = admin.database();
-        const randomCode = 'OTP' + Math.floor(100000 + Math.random() * 900000);
+        const randomCode = '' + Math.floor(100000 + Math.random() * 900000);
         const otpRef = db.ref(`otp_system/${randomCode}`);
         
         await otpRef.set({
