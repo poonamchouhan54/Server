@@ -38,16 +38,23 @@ module.exports = async (req, res) => {
         let play = req.query && req.query.play ? req.query.play : null;
         let provider = req.query && req.query.provider ? req.query.provider : '';
         
-        if (!play) {
-            let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+        // Agar query mein play nahi hai, toh URL path se ID nikalne ki koshish karo
+        if (!play && req.url) {
+            const matchId = req.url.match(/\/([a-zA-Z0-9]+)\.m3u8/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
+            } else {
+                // Agar path se na mile toh general segment check karo
+                const parts = req.url.split('?')[0].split('/').filter(Boolean);
+                const lastPart = parts[parts.length - 1];
+                if (lastPart && lastPart !== 'nc' && lastPart !== 'api') {
+                    play = lastPart.replace('.m3u8', '').replace('.html', '');
+                }
             }
         }
 
         if (!play) {
-            return res.status(400).send("Error: Play ID not provided!");
+            return res.status(400).send("Error: Play ID not provided! URL requested: " + req.url);
         }
 
         play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
