@@ -6,77 +6,55 @@ const USER_AGENTS = [
 
 module.exports = async (req, res) => {
     try {
-        // Embed ID ko request query ya URL path se dynamic lene ke liye
-        // Jaise: /api/code?id=ujv780sfjdb9 ya agar aap path use kar rahe ho toh us hisab se adjust karein
-        const embedId = req.query.id || req.query.embedId || "nu48w0ddgwrw"; 
+        // ID extraction
+        let embedId = req.query.id; 
+        if (embedId && embedId.includes('.')) {
+            embedId = embedId.split('.')[0];
+        }
+
+        // Referer aur Origin nikalna (agar URL mein diye gaye hain)
+        const referer = req.query.referer || "https://streamoupload.xyz/";
+        const origin = req.query.origin || "https://streamoupload.xyz";
+
+        if (!embedId) return res.status(400).send("ID missing");
         
-        const streamBase = "https://streamoupload.xyz/";
-        const embedUrl = `${streamBase}embed-${embedId}.html`;
-        const officialSite = "https://watchomovies.monster/";
+        const embedUrl = `https://streamoupload.xyz/embed-${embedId}.html`;
 
         const response = await fetch(embedUrl, {
             headers: {
-                "Host": new URL(streamBase).host,
-                "Connection": "keep-alive",
                 "User-Agent": USER_AGENTS[0],
-                "Referer": officialSite,
-                "Origin": officialSite.replace(/\/$/, ""),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9"
+                "Referer": referer,
+                "Origin": origin
             }
         });
         
         const html = await response.text();
-
         let foundM3u8 = null;
-        let unpackedText = "";
 
-        // 1. Direct match check
+        // Extraction logic
         let directMatch = html.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || html.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
         if (directMatch) {
             foundM3u8 = directMatch[1] || directMatch[0];
         } else {
-            // 2. Unpack Dean Edward's Packer script
             const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
             if (packerMatch) {
-                const p = packerMatch[1];
-                const a = parseInt(packerMatch[2]);
-                let c = parseInt(packerMatch[3]);
-                const k = packerMatch[4].split(packerMatch[5]);
-                
-                unpackedText = p;
-                while (c--) {
-                    if (k[c]) {
-                        const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
-                        unpackedText = unpackedText.replace(regex, k[c]);
-                    }
+                const p = packerMatch[1], a = parseInt(packerMatch[2]), c = parseInt(packerMatch[3]), k = packerMatch[4].split(packerMatch[5]);
+                let unpackedText = p;
+                for (let i = c - 1; i >= 0; i--) {
+                    if (k[i]) unpackedText = unpackedText.replace(new RegExp('\\b' + i.toString(a) + '\\b', 'g'), k[i]);
                 }
-
-                let unpackedMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpackedText.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
-                if (unpackedMatch) {
-                    foundM3u8 = unpackedMatch[1] || unpackedMatch[0];
-                }
+                let uMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
+                if (uMatch) foundM3u8 = uMatch[0];
             }
         }
 
-        // 3. Fallback poster image hash extraction agar pehle na mile
-        if (!foundM3u8) {
-            const posterMatch = html.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
-            if (posterMatch && posterMatch[1]) {
-                foundM3u8 = `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
-            }
-        }
-
-        // Agar m3u8 link mil jaye toh direct redirect kar do
         if (foundM3u8) {
+            // Player ke liye redirect
             return res.redirect(302, foundM3u8);
         } else {
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            return res.status(404).send(`<h3 style="color:red;">Error: m3u8 stream link not found for ID: ${embedId}</h3>`);
+            return res.status(404).send("Stream not found");
         }
-
     } catch (err) {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(500).send(`<h3 style="color:red;">Error:</h3><pre>${err.stack}</pre>`);
+        return res.status(500).send(err.message);
     }
 };
