@@ -56,41 +56,36 @@ module.exports = async (req, res) => {
             
             const officialSite = "https://prmovies.locker/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-            
-            // Try SpeedoStream first, if fails try StreamUpload
-            let embedUrls = [
-                { url: `${streamBase.replace(/\/$/, "")}/embed-${play}.html`, ref: officialSite },
-                { url: `https://streamoupload.xyz/${play}.html`, ref: "https://streamoupload.xyz" }
-            ];
+            const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+            const cleanOrigin = officialSite.replace(/\/$/, "");
 
-            let source = "";
-            let foundUrl = "";
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            for (let item of embedUrls) {
-                try {
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 6000);
+            const streamRes = await fetch(embedUrl, {
+                headers: { 
+                    "Host": new URL(streamBase).host,
+                    "Connection": "keep-alive",
+                    "Cache-Control": "max-age=0",
+                    "User-Agent": getRandomUserAgent(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Referer": officialSite,
+                    "Origin": cleanOrigin,
+                    "Sec-Fetch-Dest": "iframe",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
+                    "Accept-Language": "en-US,en;q=0.9"
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
 
-                    const streamRes = await fetch(item.url, {
-                        headers: { 
-                            "User-Agent": getRandomUserAgent(),
-                            "Referer": item.ref,
-                            "Origin": item.ref.replace(/\/$/, "")
-                        },
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (streamRes.ok) {
-                        source = await streamRes.text();
-                        if (source.includes('.m3u8')) {
-                            foundUrl = item.url;
-                            break;
-                        }
-                    }
-                } catch (err) {}
+            if (!streamRes.ok) {
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status} | URL: ${embedUrl}`);
             }
 
+            const source = await streamRes.text();
+            
             const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
 
             if (m3u8Match && m3u8Match[1]) {
@@ -98,7 +93,7 @@ module.exports = async (req, res) => {
                 return res.redirect(302, videoUrl);
             }
 
-            return res.status(404).send("Video stream link (.m3u8) not found!");
+            return res.status(404).send("Video stream link (.m3u8) not found in the source!");
         }
 
         // --- LIST / SEARCH MODE ---
@@ -121,6 +116,7 @@ module.exports = async (req, res) => {
         const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
         
         let playlist = "#EXTM3U\n";
+
         const mlItems = htmlContent.split('class="ml-item"');
 
         for (let index = 0; index < mlItems.length; index++) {
@@ -148,22 +144,19 @@ module.exports = async (req, res) => {
                         const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
                         
                         if (iframeMatch && iframeMatch[1]) {
+                            // Pehle iframeSrc variable define karna zaroori hai
                             const iframeSrc = iframeMatch[1];
-                            let embedDomain = cleanStreamBase;
-                            let embedId = "";
 
-                            // Check if it's StreamUpload or SpeedoStream
+                            let embedDomain = cleanStreamBase; 
                             if (iframeSrc.includes('streamoupload.xyz')) {
                                 embedDomain = 'https://streamoupload.xyz';
-                                const idMatch = iframeSrc.match(/\/([a-zA-Z0-9]+)\.html/i);
-                                if (idMatch && idMatch[1]) embedId = idMatch[1];
-                            } else {
-                                const idMatch = iframeSrc.match(/embed-([a-zA-Z0-9]+)\.html/i);
-                                if (idMatch && idMatch[1]) embedId = idMatch[1];
                             }
+                            
+                            const headersuffix = `|Referer=${embedDomain}/&Origin=${embedDomain}`;
 
-                            if (embedId) {
-                                const headersuffix = `|Referer=${embedDomain}/&Origin=${embedDomain}`;
+                            const idMatch = iframeSrc.match(/embed-([a-zA-Z0-9]+)\.html/i);
+                            if (idMatch && idMatch[1]) {
+                                const embedId = idMatch[1];
                                 const playLink = `${host}/${embedId}.m3u8${headersuffix}`;
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
