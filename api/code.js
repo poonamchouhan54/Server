@@ -6,24 +6,15 @@ const USER_AGENTS = [
 
 module.exports = async (req, res) => {
     try {
-        // Poora URL ya path decode karo (taaki | ya %7C sahi se read ho sake)
         let fullUrl = decodeURIComponent(req.url);
-        
-        // URL ko '|' se split karte hain taaki ID aur parameters alag ho jayein
         let parts = fullUrl.split('|');
         let pathSegments = parts[0].split('/');
-        let fileName = pathSegments[pathSegments.length - 1]; // "fie6rjl27cas.m3u8"
-        let embedId = fileName.split('.')[0]; // "fie6rjl27cas"
+        let fileName = pathSegments[pathSegments.length - 1]; 
+        let embedId = fileName.split('.')[0]; 
 
+        // Hamesha official site ko referer rakhein taaki stream block na ho
         let referer = "https://watchomovies.monster/";
         let origin = "https://watchomovies.monster";
-
-        // Agar pipe ke baad referer/origin diya gaya hai toh use parse karo
-        if (parts.length > 1) {
-            let params = new URLSearchParams(parts[1]);
-            if (params.has('referer')) referer = params.get('referer');
-            if (params.has('origin')) origin = params.get('origin');
-        }
 
         if (!embedId) {
             return res.status(400).send("Embed ID is missing!");
@@ -31,6 +22,9 @@ module.exports = async (req, res) => {
         
         const streamBase = "https://streamoupload.xyz/";
         const embedUrl = `${streamBase}embed-${embedId}.html`;
+
+        let debugLog = [];
+        debugLog.push(`Fetching embed URL: ${embedUrl}`);
 
         const response = await fetch(embedUrl, {
             headers: {
@@ -45,12 +39,17 @@ module.exports = async (req, res) => {
         });
         
         const html = await response.text();
+        debugLog.push(`Response Status: ${response.status}`);
+        debugLog.push(`HTML Length: ${html.length}`);
+
         let foundM3u8 = null;
+        let unpackedText = "";
 
         // 1. Direct match check
         let directMatch = html.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || html.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
         if (directMatch) {
             foundM3u8 = directMatch[1] || directMatch[0];
+            debugLog.push(`Direct m3u8 found: ${foundM3u8}`);
         } else {
             // 2. Unpack Packer script
             const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
@@ -59,16 +58,17 @@ module.exports = async (req, res) => {
                 const a = parseInt(packerMatch[2]);
                 let c = parseInt(packerMatch[3]);
                 const k = packerMatch[4].split(packerMatch[5]);
-                let unpackedText = p;
+                unpackedText = p;
                 while (c--) {
                     if (k[c]) {
                         const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
                         unpackedText = unpackedText.replace(regex, k[c]);
                     }
                 }
-                let unpackedMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpackedMatch.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+                let unpackedMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpackedText.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
                 if (unpackedMatch) {
                     foundM3u8 = unpackedMatch[1] || unpackedMatch[0];
+                    debugLog.push(`m3u8 found from unpacked code: ${foundM3u8}`);
                 }
             }
         }
@@ -78,16 +78,24 @@ module.exports = async (req, res) => {
             const posterMatch = html.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
             if (posterMatch && posterMatch[1]) {
                 foundM3u8 = `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
+                debugLog.push(`Fallback hash found: ${foundM3u8}`);
             }
         }
 
         if (foundM3u8) {
             return res.redirect(302, foundM3u8);
         } else {
-            return res.status(404).send(`Stream not found for ID: ${embedId}`);
+            // Agar link na mile toh HTML debug page dikhayein taaki pata chale issue kya hai
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
+            let output = `<h3 style="color:red;">Stream not found for ID: ${embedId}</h3>`;
+            output += `<h4>Debug Logs:</h4><ul>${debugLog.map(l => `<li>${l}</li>`).join('')}</ul>`;
+            if (unpackedText) output += `<h4>Unpacked Preview:</h4><textarea style="width:100%;height:150px;">${unpackedText}</textarea>`;
+            output += `<h4>Raw HTML:</h4><textarea style="width:100%;height:200px;">${html}</textarea>`;
+            return res.status(404).send(output);
         }
 
     } catch (err) {
-        return res.status(500).send(err.toString());
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(500).send(`<h3 style="color:red;">Error:</h3><pre>${err.stack}</pre>`);
     }
 };
