@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+Const fetch = require('node-fetch');
 
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -58,7 +58,6 @@ module.exports = async (req, res) => {
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
-            // Yeh function HTML fetch karega aur same Regex se m3u8 niklega
             async function fetchStreamFromSource(baseUrls) {
                 try {
                     const streamBase = await getLiveDomain(baseUrls);
@@ -87,8 +86,8 @@ module.exports = async (req, res) => {
                     clearTimeout(timeoutId);
 
                     if (streamRes.ok) {
-                        const source = await streamRes.text(); // <-- HTML yahan fetch ho raha hai
-                        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i); // <-- Same Regex
+                        const source = await streamRes.text();
+                        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
                         if (m3u8Match && m3u8Match[1]) {
                             return m3u8Match[1];
                         }
@@ -102,7 +101,6 @@ module.exports = async (req, res) => {
             if (provider === 'streamoupload') {
                 videoUrl = await fetchStreamFromSource(["https://streamoupload.xyz/"]);
             } else {
-                // Pehle speedostream try karo, agar wahan na mile toh streamoupload try karo
                 videoUrl = await fetchStreamFromSource(["https://speedostream1.com/", "https://speedostream.com/"]);
                 if (!videoUrl) {
                     videoUrl = await fetchStreamFromSource(["https://streamoupload.xyz/"]);
@@ -167,12 +165,11 @@ module.exports = async (req, res) => {
                                 const embedId = idMatch[1];
                                 let playLink = '';
 
-                                // Check karke usi hisaab se domain aur proper referer set kiya hai
+                                // Sirf streamoupload ke liye naya format apply kiya gaya hai
                                 if (iframeSrc.includes('streamoupload')) {
                                     const streamBaseLive = "https://streamoupload.xyz/";
                                     const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
-                                    const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
-                                    playLink = `${host}/${embedId}.m3u8?provider=streamoupload${headersuffix}`;
+                                    playLink = `${host}/api/code/${embedId}.m3u8|referer=${cleanStreamBase}/&origin=${cleanStreamBase}`;
                                 } else {
                                     const cleanStreamBase = speedoLiveDomain.replace(/\/$/, "");
                                     const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
