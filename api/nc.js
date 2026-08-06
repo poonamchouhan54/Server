@@ -1,4 +1,4 @@
-Const fetch = require('node-fetch');
+const fetch = require('node-fetch');
 
 const USER_AGENTS = [
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
@@ -54,7 +54,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Dono ke liye SAME HTML fetch aur Regex logic) ---
+        // --- PLAY MODE ---
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
@@ -165,7 +165,6 @@ module.exports = async (req, res) => {
                                 const embedId = idMatch[1];
                                 let playLink = '';
 
-                                // Sirf streamoupload ke liye naya format apply kiya gaya hai
                                 if (iframeSrc.includes('streamoupload')) {
                                     const streamBaseLive = "https://streamoupload.xyz/";
                                     const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
