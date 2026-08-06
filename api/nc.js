@@ -44,9 +44,7 @@ module.exports = async (req, res) => {
         
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
-        
-        // Check for streamoupload parameter as requested by user
-        let hasStreamUploadParam = (req.query && (req.query.streamoupload !== undefined || req.query.provider === 'streamoupload'));
+        let provider = req.query && req.query.provider ? req.query.provider : '';
         
         if (!play) {
             let urlPath = req.url || '';
@@ -56,13 +54,14 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE ---
+        // --- PLAY MODE (Dono ke liye SAME HTML fetch aur Regex logic) ---
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
-            async function fetchSpeedostream() {
+            // Yeh function HTML fetch karega aur same Regex se m3u8 niklega
+            async function fetchStreamFromSource(baseUrls) {
                 try {
-                    const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+                    const streamBase = await getLiveDomain(baseUrls);
                     const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
                     const cleanOrigin = officialSite.replace(/\/$/, "");
 
@@ -88,8 +87,8 @@ module.exports = async (req, res) => {
                     clearTimeout(timeoutId);
 
                     if (streamRes.ok) {
-                        const source = await streamRes.text();
-                        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+                        const source = await streamRes.text(); // <-- HTML yahan fetch ho raha hai
+                        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i); // <-- Same Regex
                         if (m3u8Match && m3u8Match[1]) {
                             return m3u8Match[1];
                         }
@@ -98,87 +97,15 @@ module.exports = async (req, res) => {
                 return null;
             }
 
-            async function fetchStreamoupload() {
-                try {
-                    const streamBase = await getLiveDomain(["https://streamoupload.xyz/"]);
-                    const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
-                    const cleanOrigin = officialSite.replace(/\/$/, "");
-
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-                    const streamRes = await fetch(embedUrl, {
-                        headers: { 
-                            "Host": new URL(streamBase).host,
-                            "Connection": "keep-alive",
-                            "Cache-Control": "max-age=0",
-                            "User-Agent": getRandomUserAgent(),
-                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                            "Referer": officialSite,
-                            "Origin": cleanOrigin,
-                            "Sec-Fetch-Dest": "iframe",
-                            "Sec-Fetch-Mode": "navigate",
-                            "Sec-Fetch-Site": "cross-site",
-                            "Accept-Language": "en-US,en;q=0.9"
-                        },
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-
-                    if (streamRes.ok) {
-                        const source = await streamRes.text();
-                        
-                        // 1. Direct regex check inside HTML source
-                        let m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
-                        if (m3u8Match) return m3u8Match[1] || m3u8Match[0];
-
-                        // 2. Unpack Dean Edward's Packer script exactly like view-source reveals
-                        const packerMatch = source.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
-                        if (packerMatch) {
-                            const p = packerMatch[1];
-                            const a = parseInt(packerMatch[2]);
-                            let c = parseInt(packerMatch[3]);
-                            const k = packerMatch[4].split(packerMatch[5]);
-                            
-                            let unpacked = p;
-                            while (c--) {
-                                if (k[c]) {
-                                    const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
-                                    unpacked = unpacked.replace(regex, k[c]);
-                                }
-                            }
-
-                            // Match m3u8 inside unpacked code string
-                            let unpackedMatch = unpacked.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
-                            if (unpackedMatch) {
-                                return unpackedMatch[1] || unpackedMatch[0];
-                            }
-                        }
-
-                        // 3. Fallback poster image hash extraction to construct master.m3u8 link
-                        const posterMatch = source.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
-                        if (posterMatch && posterMatch[1]) {
-                            return `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
-                        }
-
-                        // General global source search fallback for any m3u8 occurrence
-                        const generalMatch = source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
-                        if (generalMatch) {
-                            return generalMatch[0];
-                        }
-                    }
-                } catch (e) {}
-                return null;
-            }
-
             let videoUrl = null;
 
-            if (hasStreamUploadParam) {
-                videoUrl = await fetchStreamoupload();
+            if (provider === 'streamoupload') {
+                videoUrl = await fetchStreamFromSource(["https://streamoupload.xyz/"]);
             } else {
-                videoUrl = await fetchSpeedostream();
+                // Pehle speedostream try karo, agar wahan na mile toh streamoupload try karo
+                videoUrl = await fetchStreamFromSource(["https://speedostream1.com/", "https://speedostream.com/"]);
                 if (!videoUrl) {
-                    videoUrl = await fetchStreamoupload();
+                    videoUrl = await fetchStreamFromSource(["https://streamoupload.xyz/"]);
                 }
             }
 
@@ -207,10 +134,10 @@ module.exports = async (req, res) => {
         const speedoLiveDomain = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
         let playlist = "#EXTM3U\n";
 
-        const rawItems = htmlContent.split('class="ml-item"');
-        const mlItems = rawItems.slice(1, 11); // Timeout protection limit
+        const mlItems = htmlContent.split('class="ml-item"');
 
         for (let index = 0; index < mlItems.length; index++) {
+            if (index === 0) continue;
             const item = mlItems[index];
 
             const hrefMatch = item.match(/<a\s+href="([^"]+)"/);
@@ -226,15 +153,9 @@ module.exports = async (req, res) => {
                 }
 
                 try {
-                    const detailController = new AbortController();
-                    const detailTimeout = setTimeout(() => detailController.abort(), 3000);
-
                     const detailRes = await fetch(movieHref, {
-                        headers: { "User-Agent": getRandomUserAgent() },
-                        signal: detailController.signal
+                        headers: { "User-Agent": getRandomUserAgent() }
                     });
-                    clearTimeout(detailTimeout);
-
                     if (detailRes.ok) {
                         const detailHtml = await detailRes.text();
                         const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
@@ -246,11 +167,12 @@ module.exports = async (req, res) => {
                                 const embedId = idMatch[1];
                                 let playLink = '';
 
+                                // Check karke usi hisaab se domain aur proper referer set kiya hai
                                 if (iframeSrc.includes('streamoupload')) {
                                     const streamBaseLive = "https://streamoupload.xyz/";
                                     const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
                                     const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
-                                    playLink = `${host}/${embedId}.m3u8?streamoupload=streamoupload${headersuffix}`;
+                                    playLink = `${host}/${embedId}.m3u8?provider=streamoupload${headersuffix}`;
                                 } else {
                                     const cleanStreamBase = speedoLiveDomain.replace(/\/$/, "");
                                     const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
