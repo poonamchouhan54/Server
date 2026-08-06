@@ -6,14 +6,14 @@ const USER_AGENTS = [
 
 module.exports = async (req, res) => {
     try {
-        // Poora URL decode karo taaki pipe (|) aur parameters sahi se read ho sakein
+        // Poora URL ya path decode karo (taaki | ya %7C sahi se read ho sake)
         let fullUrl = decodeURIComponent(req.url);
         
         // URL ko '|' se split karte hain taaki ID aur parameters alag ho jayein
         let parts = fullUrl.split('|');
         let pathSegments = parts[0].split('/');
-        let fileName = pathSegments[pathSegments.length - 1]; // "0a47gxyfgqa3.m3u8"
-        let embedId = fileName.split('.')[0]; // "0a47gxyfgqa3"
+        let fileName = pathSegments[pathSegments.length - 1]; // "fie6rjl27cas.m3u8"
+        let embedId = fileName.split('.')[0]; // "fie6rjl27cas"
 
         let referer = "https://watchomovies.monster/";
         let origin = "https://watchomovies.monster";
