@@ -127,8 +127,8 @@ module.exports = async (req, res) => {
                         const source = await streamRes.text();
                         
                         // 1. Direct match check
-                        let m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
-                        if (m3u8Match && m3u8Match[1]) return m3u8Match[1];
+                        let m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
+                        if (m3u8Match) return m3u8Match[1] || m3u8Match[0];
 
                         // 2. Unpack Dean Edward's Packer script properly
                         const packerMatch = source.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
@@ -147,22 +147,19 @@ module.exports = async (req, res) => {
                             }
 
                             // Extract complete m3u8 URL pattern from unpacked code
-                            const unpackedMatch = unpacked.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+                            let unpackedMatch = unpacked.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
                             if (unpackedMatch) {
                                 return unpackedMatch[1] || unpackedMatch[0];
                             }
-
-                            // Fallback: Construct using split tokens if direct url wasn't formed inside unpacked string
-                            // Checking tokens in k array for streamoupload domain pattern
-                            let domainFound = "https://pnam.streamoupload.xyz/";
-                            for (let token of k) {
-                                if (token && token.includes('m3u8')) {
-                                    return `${domainFound}${token}`;
-                                }
-                            }
                         }
 
-                        // 3. Fallback general check across full source
+                        // 3. Absolute fallback using image poster hash from source HTML
+                        const posterMatch = source.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
+                        if (posterMatch && posterMatch[1]) {
+                            return `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
+                        }
+
+                        // General fallback check across full source
                         const generalMatch = source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
                         if (generalMatch) {
                             return generalMatch[0];
