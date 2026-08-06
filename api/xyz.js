@@ -79,24 +79,17 @@ if (req.method === 'OPTIONS') {
             return res.status(403).send(`Blocked or Forbidden! Embed not found on any domain for ID: ${play}`);  
         }  
 
-        const source = await streamRes.text();  
+        const source = await streamRes.text();
 
-        // streamoupload.xyz ke liye raw View Source dikhao
+// Sirf streamoupload.xyz ka raw embed source dikhao
 if (activeDomain.includes("streamoupload.xyz")) {
     res.setHeader("Content-Type", "text/plain; charset=utf-8");
     res.setHeader("Cache-Control", "no-store");
     return res.status(200).send(source);
 }
 
-        // Baaki speedo domains ke liye purana logic (.m3u8 redirect)  
-        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);  
-
-        if (m3u8Match && m3u8Match[1]) {  
-            const videoUrl = m3u8Match[1];  
-            return res.redirect(302, videoUrl);  
-        }  
-
-        return res.status(404).send("Video stream link (.m3u8) not found in the source!");  
+// Baaki domains ke liye kuch mat karo
+return res.status(404).send("Only streamoupload.xyz source is supported.");
     }  
 
     // --- LIST / SEARCH MODE ---  
