@@ -176,7 +176,7 @@ module.exports = async (req, res) => {
                                 }
 
                                 const logo = imgMatch ? imgMatch[1] : '';
-                                playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
+                                playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="🔞18+",${title}\n${playLink}\n`;
                             }
                         }
                     }
