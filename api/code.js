@@ -1,117 +1,274 @@
 const fetch = require('node-fetch');
 
 const USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
 ];
+
+function getRandomUserAgent() {
+    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+async function getLiveDomain(testUrls) {
+    for (let url of testUrls) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(url, { 
+                method: 'HEAD',
+                headers: { "User-Agent": getRandomUserAgent() },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) return new URL(res.url).origin + "/";
+        } catch (e) {}
+    }
+    return testUrls[0];
+}
 
 module.exports = async (req, res) => {
     try {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         
-        const embedId = "nu48w0ddgwrw"; 
-        const streamBase = "https://streamoupload.xyz/";
-        const embedUrl = `${streamBase}embed-${embedId}.html`;
-        const officialSite = "https://watchomovies.monster/";
-
-        let output = `<h2>StreamUpload Debugger & Extractor</h2>`;
-        output += `<p><b>Fetching URL:</b> ${embedUrl}</p>`;
-
-        const response = await fetch(embedUrl, {
-            headers: {
-                "Host": new URL(streamBase).host,
-                "Connection": "keep-alive",
-                "User-Agent": USER_AGENTS[0],
-                "Referer": officialSite,
-                "Origin": officialSite.replace(/\/$/, ""),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9"
-            }
-        });
-
-        output += `<p><b>Response Status:</b> ${response.status} ${response.statusText}</p>`;
-        
-        const html = await response.text();
-        output += `<p><b>HTML Total Length:</b> ${html.length} characters</p>`;
-
-        let foundM3u8 = null;
-        let debugLog = [];
-        let unpackedText = "";
-
-        // 1. Direct match check
-        let directMatch = html.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || html.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
-        if (directMatch) {
-            foundM3u8 = directMatch[1] || directMatch[0];
-            debugLog.push(`<p style="color:green;">[✔] Direct m3u8 found: <code>${foundM3u8}</code></p>`);
-        } else {
-            debugLog.push(`<p style="color:orange;">[!] Direct m3u8 not found in raw HTML. Trying Packer unpacking...</p>`);
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
         }
-
-        // 2. Unpack Dean Edward's Packer script
-        const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
-        if (packerMatch) {
-            debugLog.push(`<p style="color:green;">[✔] Packer script detected successfully!</p>`);
-            const p = packerMatch[1];
-            const a = parseInt(packerMatch[2]);
-            let c = parseInt(packerMatch[3]);
-            const k = packerMatch[4].split(packerMatch[5]);
+        
+        let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
+        const host = `https://${hostHeader}`;
+        
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/';
+        const officialSite = new URL(targetBaseUrl).searchParams.get('site');
+        
+        let play = req.query && req.query.play ? req.query.play : null;
+        let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
+        
+        let hasStreamUploadParam = (req.query && (req.query.streamoupload !== undefined || req.query.provider === 'streamoupload' || req.url.includes('streamoupload')));
+        
+        if (!play) {
+            let urlPath = req.url || '';
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+            if (matchId && matchId[1]) {
+                play = matchId[1];
+            }
+        }
+        
+        // --- PLAY & REDIRECT MODE ---
+        if (play) {
+            play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
-            unpackedText = p;
-            while (c--) {
-                if (k[c]) {
-                    const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
-                    unpackedText = unpackedText.replace(regex, k[c]);
+            async function fetchSpeedostream() {
+                try {
+                    const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+                    const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+                    const cleanOrigin = officialSite.replace(/\/$/, "");
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                    const streamRes = await fetch(embedUrl, {
+                        headers: { 
+                            "Host": new URL(streamBase).host,
+                            "Connection": "keep-alive",
+                            "Cache-Control": "max-age=0",
+                            "User-Agent": getRandomUserAgent(),
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                            "Referer": officialSite,
+                            "Origin": cleanOrigin,
+                            "Sec-Fetch-Dest": "iframe",
+                            "Sec-Fetch-Mode": "navigate",
+                            "Sec-Fetch-Site": "cross-site",
+                            "Accept-Language": "en-US,en;q=0.9"
+                        },
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (streamRes.ok) {
+                        const source = await streamRes.text();
+                        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+                        if (m3u8Match && m3u8Match[1]) {
+                            return m3u8Match[1];
+                        }
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            async function fetchStreamoupload() {
+                try {
+                    const streamBase = await getLiveDomain(["https://streamoupload.xyz/"]);
+                    const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+                    const officialSiteUrl = "https://watchomovies.monster/";
+
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+                    const streamRes = await fetch(embedUrl, {
+                        headers: {
+                            "Host": new URL(streamBase).host,
+                            "Connection": "keep-alive",
+                            "User-Agent": USER_AGENTS[0],
+                            "Referer": officialSiteUrl,
+                            "Origin": officialSiteUrl.replace(/\/$/, ""),
+                            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                            "Accept-Language": "en-US,en;q=0.9"
+                        },
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+
+                    if (streamRes.ok) {
+                        const html = await streamRes.text();
+                        let foundM3u8 = null;
+
+                        // 1. Direct match check
+                        let directMatch = html.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || html.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
+                        if (directMatch) {
+                            foundM3u8 = directMatch[1] || directMatch[0];
+                        }
+
+                        // 2. Unpack Dean Edward's Packer script (exact debugger logic)
+                        if (!foundM3u8) {
+                            const packerMatch = html.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
+                            if (packerMatch) {
+                                const p = packerMatch[1];
+                                const a = parseInt(packerMatch[2]);
+                                let c = parseInt(packerMatch[3]);
+                                const k = packerMatch[4].split(packerMatch[5]);
+                                
+                                let unpackedText = p;
+                                while (c--) {
+                                    if (k[c]) {
+                                        const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
+                                        unpackedText = unpackedText.replace(regex, k[c]);
+                                    }
+                                }
+
+                                let unpackedMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpackedText.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+                                if (unpackedMatch) {
+                                    foundM3u8 = unpackedMatch[1] || unpackedMatch[0];
+                                }
+                            }
+                        }
+
+                        // 3. Fallback poster image hash extraction
+                        if (!foundM3u8) {
+                            const posterMatch = html.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
+                            if (posterMatch && posterMatch[1]) {
+                                foundM3u8 = `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
+                            }
+                        }
+
+                        if (foundM3u8) {
+                            return foundM3u8.replace(/["']/g, '').trim();
+                        }
+                    }
+                } catch (e) {}
+                return null;
+            }
+
+            let videoUrl = null;
+
+            if (hasStreamUploadParam) {
+                videoUrl = await fetchStreamoupload();
+            } else {
+                videoUrl = await fetchSpeedostream();
+                if (!videoUrl) {
+                    videoUrl = await fetchStreamoupload();
                 }
             }
 
-            let unpackedMatch = unpackedText.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpackedText.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
-            if (unpackedMatch) {
-                foundM3u8 = unpackedMatch[1] || unpackedMatch[0];
-                debugLog.push(`<p style="color:green; font-weight:bold;">[✔] Success! m3u8 extracted from unpacked code: <code>${foundM3u8}</code></p>`);
-            } else {
-                debugLog.push(`<p style="color:red;">[✘] m3u8 pattern not found inside unpacked code.</p>`);
+            if (videoUrl) {
+                return res.redirect(302, videoUrl);
             }
-        } else {
-            debugLog.push(`<p style="color:red;">[✘] Packer script pattern not matched.</p>`);
+
+            return res.status(404).send("Video stream link (.m3u8) not found in the source!");
         }
 
-        // 3. Fallback poster image hash extraction
-        const posterMatch = html.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
-        if (posterMatch && posterMatch[1]) {
-            const fallbackUrl = `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
-            debugLog.push(`<p style="color:blue;">[i] Poster Hash Found: <b>${posterMatch[1]}</b> -> Fallback Link: <code>${fallbackUrl}</code></p>`);
-            if (!foundM3u8) {
-                foundM3u8 = fallbackUrl;
+        // --- LIST / SEARCH MODE ---
+        let targetUrl = targetBaseUrl;
+        if (searchQuery) {
+            targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
+        }
+
+        const htmlRes = await fetch(targetUrl, {
+            headers: { "User-Agent": getRandomUserAgent() }
+        });
+
+        if (!htmlRes.ok) {
+            throw new Error(`Target worker returned status ${htmlRes.status}`);
+        }
+
+        const htmlContent = await htmlRes.text();
+        const speedoLiveDomain = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+        let playlist = "#EXTM3U\n";
+
+        const rawItems = htmlContent.split('class="ml-item"');
+        const mlItems = rawItems.slice(1, 11);
+
+        for (let index = 0; index < mlItems.length; index++) {
+            const item = mlItems[index];
+
+            const hrefMatch = item.match(/<a\s+href="([^"]+)"/);
+            const imgMatch = item.match(/data-original="([^"]+)"/);
+            const titleMatch = item.match(/<h2>([\s\S]*?)<\/h2>/);
+
+            if (titleMatch && hrefMatch) {
+                const title = titleMatch[1].trim();
+                const movieHref = hrefMatch[1];
+
+                if (searchQuery && !title.toLowerCase().includes(searchQuery)) {
+                    continue;
+                }
+
+                try {
+                    const detailController = new AbortController();
+                    const detailTimeout = setTimeout(() => detailController.abort(), 3000);
+
+                    const detailRes = await fetch(movieHref, {
+                        headers: { "User-Agent": getRandomUserAgent() },
+                        signal: detailController.signal
+                    });
+                    clearTimeout(detailTimeout);
+
+                    if (detailRes.ok) {
+                        const detailHtml = await detailRes.text();
+                        const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
+                        if (iframeMatch && iframeMatch[1]) {
+                            const iframeSrc = iframeMatch[1];
+                            const idMatch = iframeSrc.match(/embed-([a-zA-Z0-9]+)\.html/i);
+                            
+                            if (idMatch && idMatch[1]) {
+                                const embedId = idMatch[1];
+                                let playLink = '';
+
+                                if (iframeSrc.includes('streamoupload')) {
+                                    const cleanStreamBase = "https://streamoupload.xyz/";
+                                    const headersuffix = `|Referer=${cleanStreamBase}&Origin=${cleanStreamBase.replace(/\/$/, "")}`;
+                                    playLink = `${host}/${embedId}.m3u8?streamoupload=streamoupload1${headersuffix}`;
+                                } else {
+                                    const cleanStreamBase = speedoLiveDomain.replace(/\/$/, "");
+                                    const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
+                                    playLink = `${host}/${embedId}.m3u8${headersuffix}`;
+                                }
+
+                                const logo = imgMatch ? imgMatch[1] : '';
+                                playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
+                            }
+                        }
+                    }
+                } catch (err) {}
             }
         }
 
-        // Display Final Result Box
-        if (foundM3u8) {
-            output += `<div style="background:#032f03; border:2px solid green; padding:15px; margin:15px 0;">`;
-            output += `<h3 style="color:#7ef87e; margin-top:0;">Final Extracted .m3u8 Stream Link:</h3>`;
-            output += `<input type="text" value="${foundM3u8}" style="width:100%; padding:10px; font-size:16px; background:#000; color:#0f0; border:1px solid #444;" readonly />`;
-            output += `</div>`;
-        } else {
-            output += `<div style="background:#320303; border:2px solid red; padding:15px; margin:15px 0;">`;
-            output += `<h3 style="color:#f87e7e; margin-top:0;">Failed to extract m3u8 automatically!</h3>`;
-            output += `</div>`;
-        }
-
-        output += `<h3>Extraction Steps Log:</h3><ul>`;
-        debugLog.forEach(log => output += `<li>${log}</li>`);
-        output += `</ul>`;
-
-        if (unpackedText) {
-            output += `<h3>Unpacked Script Preview:</h3>`;
-            output += `<textarea style="width:100%; height:200px; background:#111; color:#0f0; padding:10px; font-family:monospace;">${unpackedText}</textarea>`;
-        }
-
-        output += `<h3>Raw HTML Source Code:</h3>`;
-        output += `<textarea style="width:100%; height:300px; background:#111; color:#ff0; padding:10px; font-family:monospace;">${html}</textarea>`;
-
-        return res.status(200).send(output);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(200).send(playlist);
 
     } catch (err) {
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        return res.status(200).send(`<h3 style="color:red;">Error:</h3><pre>${err.stack}</pre>`);
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
