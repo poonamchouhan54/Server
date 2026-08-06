@@ -39,6 +39,10 @@ module.exports = async (req, res) => {
         let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
         const host = `https://${hostHeader}`;
         
+        // TargetBaseUrl aur officialSite ko yahan upar define kar diya hai
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/';
+        const officialSite = new URL(targetBaseUrl).searchParams.get('site');
+        
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
@@ -54,7 +58,6 @@ module.exports = async (req, res) => {
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
-            const officialSite = "https://prmovies.locker/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
             const cleanOrigin = officialSite.replace(/\/$/, "");
@@ -98,7 +101,6 @@ module.exports = async (req, res) => {
         }
 
         // --- LIST / SEARCH MODE ---
-        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/';
         let targetUrl = targetBaseUrl;
         if (searchQuery) {
             targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
