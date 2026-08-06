@@ -86,7 +86,6 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            // Regex se .m3u8 direct video stream link extract karein
             const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
 
             if (m3u8Match && m3u8Match[1]) {
@@ -115,7 +114,7 @@ module.exports = async (req, res) => {
         const htmlContent = await htmlRes.text();
         const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
         const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
-        const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
+        
         let playlist = "#EXTM3U\n";
 
         const mlItems = htmlContent.split('class="ml-item"');
@@ -143,11 +142,21 @@ module.exports = async (req, res) => {
                     if (detailRes.ok) {
                         const detailHtml = await detailRes.text();
                         const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
+                        
                         if (iframeMatch && iframeMatch[1]) {
-                            const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
+                            // Pehle iframeSrc variable define karna zaroori hai
+                            const iframeSrc = iframeMatch[1];
+
+                            let embedDomain = cleanStreamBase; 
+                            if (iframeSrc.includes('streamoupload.xyz')) {
+                                embedDomain = 'https://streamoupload.xyz';
+                            }
+                            
+                            const headersuffix = `|Referer=${embedDomain}/&Origin=${embedDomain}`;
+
+                            const idMatch = iframeSrc.match(/embed-([a-zA-Z0-9]+)\.html/i);
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
-                                // Player ke liye link ab direct .m3u8 format mein banega
                                 const playLink = `${host}/${embedId}.m3u8${headersuffix}`;
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
