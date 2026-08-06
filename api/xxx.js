@@ -33,7 +33,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE ---
+        // --- PLAY MODE (Extracts .m3u8 and redirects) ---
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
@@ -48,13 +48,14 @@ module.exports = async (req, res) => {
             let activeDomain = "";
             let embedUrl = "";
 
+            // Check which domain has the live embed for this ID
             for (let domain of candidateDomains) {
                 try {
                     embedUrl = `${domain.replace(/\/$/, "")}/embed-${play}.html`;
                     const controller = new AbortController();
                     const timeoutId = setTimeout(() => controller.abort(), 4000);
 
-                    const response = await fetch(embedUrl, {
+                    const res = await fetch(embedUrl, {
                         headers: { 
                             "Host": new URL(domain).host,
                             "User-Agent": getRandomUserAgent(),
@@ -66,8 +67,8 @@ module.exports = async (req, res) => {
                     });
                     clearTimeout(timeoutId);
 
-                    if (response.ok) {
-                        streamRes = response;
+                    if (res.ok) {
+                        streamRes = res;
                         activeDomain = domain;
                         break;
                     }
@@ -80,14 +81,15 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
 
-            // Agar active domain streamoupload.xyz hai, to seedha view source (HTML) return karega
+            // Agar active domain streamoupload.xyz hai, toh seedha view source (HTML) dikhao
             if (activeDomain.includes("streamoupload.xyz")) {
                 res.setHeader('Content-Type', 'text/html; charset=utf-8');
                 return res.status(200).send(source);
             }
 
-            // Speedo ke liye purana working logic (Redirect `.m3u8`)
+            // Baaki speedo domains ke liye purana logic (.m3u8 redirect)
             const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+
             if (m3u8Match && m3u8Match[1]) {
                 const videoUrl = m3u8Match[1];
                 return res.redirect(302, videoUrl);
@@ -97,7 +99,7 @@ module.exports = async (req, res) => {
         }
 
         // --- LIST / SEARCH MODE ---
-        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://prmovies.locker';
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/';
         let targetUrl = targetBaseUrl;
         if (searchQuery) {
             targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
@@ -146,6 +148,7 @@ module.exports = async (req, res) => {
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
                                 
+                                // Extract origin directly from the specific iframe source URL
                                 let itemOrigin = "";
                                 try {
                                     const parsedIframe = new URL(iframeSrc);
