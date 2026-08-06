@@ -44,7 +44,9 @@ module.exports = async (req, res) => {
         
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
-        let provider = req.query && req.query.provider ? req.query.provider : '';
+        
+        // Check for streamoupload parameter as requested by user
+        let hasStreamUploadParam = (req.query && (req.query.streamoupload !== undefined || req.query.provider === 'streamoupload'));
         
         if (!play) {
             let urlPath = req.url || '';
@@ -126,11 +128,11 @@ module.exports = async (req, res) => {
                     if (streamRes.ok) {
                         const source = await streamRes.text();
                         
-                        // 1. Direct match check
+                        // 1. Direct regex check inside HTML source
                         let m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
                         if (m3u8Match) return m3u8Match[1] || m3u8Match[0];
 
-                        // 2. Unpack Dean Edward's Packer script properly
+                        // 2. Unpack Dean Edward's Packer script exactly like view-source reveals
                         const packerMatch = source.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
                         if (packerMatch) {
                             const p = packerMatch[1];
@@ -146,20 +148,20 @@ module.exports = async (req, res) => {
                                 }
                             }
 
-                            // Extract complete m3u8 URL pattern from unpacked code
+                            // Match m3u8 inside unpacked code string
                             let unpackedMatch = unpacked.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i) || unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
                             if (unpackedMatch) {
                                 return unpackedMatch[1] || unpackedMatch[0];
                             }
                         }
 
-                        // 3. Absolute fallback using image poster hash from source HTML
+                        // 3. Fallback poster image hash extraction to construct master.m3u8 link
                         const posterMatch = source.match(/https?:\/\/pnam\.streamoupload\.xyz\/i\/[^\s"']+\/([a-z0-9]+)\.jpg/i);
                         if (posterMatch && posterMatch[1]) {
                             return `https://pnam.streamoupload.xyz/hls/${posterMatch[1]}/master.m3u8`;
                         }
 
-                        // General fallback check across full source
+                        // General global source search fallback for any m3u8 occurrence
                         const generalMatch = source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
                         if (generalMatch) {
                             return generalMatch[0];
@@ -171,7 +173,7 @@ module.exports = async (req, res) => {
 
             let videoUrl = null;
 
-            if (provider === 'streamoupload') {
+            if (hasStreamUploadParam) {
                 videoUrl = await fetchStreamoupload();
             } else {
                 videoUrl = await fetchSpeedostream();
@@ -248,7 +250,7 @@ module.exports = async (req, res) => {
                                     const streamBaseLive = "https://streamoupload.xyz/";
                                     const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
                                     const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
-                                    playLink = `${host}/${embedId}.m3u8?provider=streamoupload${headersuffix}`;
+                                    playLink = `${host}/${embedId}.m3u8?streamoupload=streamoupload${headersuffix}`;
                                 } else {
                                     const cleanStreamBase = speedoLiveDomain.replace(/\/$/, "");
                                     const headersuffix = `|Referer=${cleanStreamBase}/&Origin=${cleanStreamBase}`;
