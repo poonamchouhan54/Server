@@ -1,5 +1,6 @@
 {
   "rewrites": [
+    { "source": "/api/code/:path*", "destination": "/api/code.js" },
     { "source": "/api/nc", "destination": "/api/nc" },
     { "source": "/nc", "destination": "/api/nc" },
     { "source": "/api/prsearch", "destination": "/api/prsearch" },
