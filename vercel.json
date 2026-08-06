@@ -1,9 +1,10 @@
 {
   "rewrites": [
     { "source": "/api/nc", "destination": "/api/nc" },
-    { "source": "/api/(.*)", "destination": "/api/prsearch" },
-    { "source": "/search", "destination": "/api/prsearch" },
+    { "source": "/nc", "destination": "/api/nc" },
+    { "source": "/api/prsearch", "destination": "/api/prsearch" },
     { "source": "/search/(.*)", "destination": "/api/prsearch" },
+    { "source": "/search", "destination": "/api/prsearch" },
     { "source": "/((?!api/).*)", "destination": "/api/prsearch" }
   ]
 }
