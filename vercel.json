@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/api/speedo", "destination": "/api/speedo" },
+    { "source": "/api/xxx", "destination": "/api/xxx" },
     { "source": "/api/(.*)", "destination": "/api/prsearch" },
     { "source": "/search", "destination": "/api/prsearch" },
     { "source": "/search/(.*)", "destination": "/api/prsearch" },
