@@ -58,7 +58,6 @@ module.exports = async (req, res) => {
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
-            // Speedostream Function (Aapka mast chal raha hai, same rakha hai)
             async function fetchSpeedostream() {
                 try {
                     const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
@@ -97,7 +96,6 @@ module.exports = async (req, res) => {
                 return null;
             }
 
-            // Streamoupload Function (Smart general search fallback ke sath)
             async function fetchStreamoupload() {
                 try {
                     const streamBase = await getLiveDomain(["https://streamoupload.xyz/"]);
@@ -128,14 +126,37 @@ module.exports = async (req, res) => {
                     if (streamRes.ok) {
                         const source = await streamRes.text();
                         
+                        // 1. Direct match check
                         let m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
-                        if (!m3u8Match) {
-                            const generalMatch = source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
-                            if (generalMatch) {
-                                return generalMatch[0];
+                        if (m3u8Match && m3u8Match[1]) return m3u8Match[1];
+
+                        // 2. Unpack Dean Edward's Packer script
+                        const packerMatch = source.match(/eval\(function\(p,a,c,k,e,d\)\{.*?\}\('(.*?)',\s*(\d+),\s*(\d+),\s*'(.*?)'\.split\('(.)'\)\)\)/s);
+                        if (packerMatch) {
+                            const p = packerMatch[1];
+                            const a = parseInt(packerMatch[2]);
+                            let c = parseInt(packerMatch[3]);
+                            const k = packerMatch[4].split(packerMatch[5]);
+                            
+                            let unpacked = p;
+                            while (c--) {
+                                if (k[c]) {
+                                    const regex = new RegExp('\\b' + c.toString(a) + '\\b', 'g');
+                                    unpacked = unpacked.replace(regex, k[c]);
+                                }
                             }
-                        } else {
-                            return m3u8Match[1];
+
+                            // Extract .m3u8 from unpacked code
+                            const unpackedMatch = unpacked.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || unpacked.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
+                            if (unpackedMatch) {
+                                return unpackedMatch[1] || unpackedMatch[0];
+                            }
+                        }
+
+                        // 3. Fallback general check
+                        const generalMatch = source.match(/https?:\/\/[^\s"'<>\n]+\.m3u8[^\s"'<>]*?/i);
+                        if (generalMatch) {
+                            return generalMatch[0];
                         }
                     }
                 } catch (e) {}
@@ -178,14 +199,15 @@ module.exports = async (req, res) => {
         const speedoLiveDomain = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
         let playlist = "#EXTM3U\n";
 
-        const mlItems = htmlContent.split('class="ml-item"');
+        const rawItems = htmlContent.split('class="ml-item"');
+        const mlItems = rawItems.slice(1, 11); // Timeout protection limit
 
         for (let index = 0; index < mlItems.length; index++) {
-            if (index === 0) continue;
             const item = mlItems[index];
 
             const hrefMatch = item.match(/<a\s+href="([^"]+)"/);
             const imgMatch = item.match(/data-original="([^"]+)"/);
+            (item.match(/<h2>([\s\S]*?)<\/h2>/)); // handled title match if needed or keep original
             const titleMatch = item.match(/<h2>([\s\S]*?)<\/h2>/);
 
             if (titleMatch && hrefMatch) {
@@ -197,9 +219,15 @@ module.exports = async (req, res) => {
                 }
 
                 try {
+                    const detailController = new AbortController();
+                    const detailTimeout = setTimeout(() => detailController.abort(), 3000);
+
                     const detailRes = await fetch(movieHref, {
-                        headers: { "User-Agent": getRandomUserAgent() }
+                        headers: { "User-Agent": getRandomUserAgent() },
+                        signal: detailController.signal
                     });
+                    clearTimeout(detailTimeout);
+
                     if (detailRes.ok) {
                         const detailHtml = await detailRes.text();
                         const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
