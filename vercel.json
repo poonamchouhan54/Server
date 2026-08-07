@@ -6,6 +6,7 @@
     { "source": "/api/prsearch", "destination": "/api/prsearch" },
     { "source": "/search/(.*)", "destination": "/api/prsearch" },
     { "source": "/search", "destination": "/api/prsearch" },
+    { "source": "/proxy/(.*)", "destination": "/updat.js" },
     { "source": "/((?!api/).*)", "destination": "/api/prsearch" }
   ]
 }
