@@ -1,7 +1,7 @@
 const admin = require('firebase-admin');
 const fetch = require('node-fetch');
 
-module.exports = async (req, res) => {
+async function handler(req, res) {
     try {
         if (!admin.apps.length) {
             const privateKeyLines = [
@@ -47,8 +47,15 @@ module.exports = async (req, res) => {
 
         const db = admin.database();
 
-        // Playlist fetch karna aur Firebase me save karna
-        const response = await fetch("https://little-tree-6044.poonamchouhan076.workers.dev/");
+        // Timeout ko badhakar 55 seconds kar diya hai (Vercel limit ke anusaar)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 55000);
+
+        const response = await fetch("https://little-tree-6044.poonamchouhan076.workers.dev/", {
+            signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+
         if (!response.ok) {
             throw new Error(`Worker responded with status: ${response.status}`);
         }
@@ -100,10 +107,14 @@ module.exports = async (req, res) => {
             <body>
                 <div class="box">
                     <h2>❌ ERROR OCCURRED</h2>
-                    <div class="code">${error.message}</div>
+                    <div class="code">${error.name === 'AbortError' ? 'Request timed out while fetching playlist (55s limit reached)' : error.message}</div>
                 </div>
             </body>
             </html>
         `);
     }
-};
+}
+
+// Vercel function ki max execution duration ko maximum limit par set karna
+handler.maxDuration = 60;
+module.exports = handler;
