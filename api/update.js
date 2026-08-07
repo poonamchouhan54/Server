@@ -25,7 +25,7 @@ if (!admin.apps.length) {
 
 export default async function handler(req, res) {
   try {
-    const response = await fetch("https://project-lc4mz.vercel.app/api/prt");
+    const response = await fetch("https://little-tree-6044.poonamchouhan076.workers.dev/");
     const playlist = await response.text();
 
     await admin.database().ref("m3u/playlist").set(playlist);
