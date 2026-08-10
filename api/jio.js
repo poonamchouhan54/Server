@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
-    const jsonUrl = "https://binge-giotv.pages.dev/data/id.json"; 
+    const jsonUrl = "https://sonujson-devloper.vercel.app/Data/sports.json"; 
 
     try {
         const response = await fetch(jsonUrl);
