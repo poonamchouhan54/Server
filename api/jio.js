@@ -20,10 +20,13 @@ export default async function handler(req, res) {
             channelsList.forEach(channel => {
                 const id = channel.id || "";
                 const name = channel.name || "";
-                const streamUrl = channel.stream_url || channel.url || "";
+                let streamUrl = channel.stream_url || channel.url || "";
 
-                // **CRITICAL FIX:** Agar channel ka name ya stream URL hi nahi hai, toh use skip kar do taaki app crash na ho!
+                // Skip if name or streamUrl is missing
                 if (!name || !streamUrl) return;
+
+                // **FIX:** URL ke piche ke query parameters (?__hdnea__=...) ko hataane ke liye taaki URL clean rahe
+                streamUrl = streamUrl.split('?')[0];
 
                 const logo = channel.logo || `https://jiotv.catchup.cdn.jio.com/dare_images/images/${id}.png`;
                 const group = channel.category || channel.group || "Sports";
@@ -34,7 +37,7 @@ export default async function handler(req, res) {
                 // 1. EXTINF Line
                 m3uContent += `#EXTINF:-1 group-title="${group}" tvg-id="${id}" tvg-logo="${logo}",${name}\n`;
 
-                // 2. DRM Key properties (Sirf tabhi add honge jab valid honge)
+                // 2. DRM Key properties
                 if (keyId && key) {
                     m3uContent += `#KODIPROP:inputstream.adaptive.license_type=clearkey\n`;
                     m3uContent += `#KODIPROP:inputstream.adaptive.license_key=${keyId}:${key}\n`;
@@ -48,7 +51,7 @@ export default async function handler(req, res) {
                     m3uContent += `#EXTHTTP:{"Cookie":"${cookie}"}\n`;
                 }
 
-                // 5. Final Stream URL
+                // 5. Final Clean Stream URL
                 m3uContent += `${streamUrl}\n`;
             });
         }
