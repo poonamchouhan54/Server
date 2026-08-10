@@ -7,14 +7,13 @@ export default async function handler(req, res) {
         const response = await fetch(jsonUrl);
         const data = await response.json();
 
-        // M3U Header
+        // M3U Header with EXT-X-VERSION or standard M3U
         let m3uContent = '#EXTM3U\n';
 
         if (data.channels && Array.isArray(data.channels)) {
             data.channels.forEach(channel => {
                 const id = channel.id || "";
                 const name = channel.name || "Unknown Channel";
-                // Agar JSON mein logo nahi hai toh default JioTV logo pattern use hoga
                 const logo = channel.logo || `https://jiotv.catchup.cdn.jio.com/dare_images/images/${id}.png`;
                 const group = channel.group || "Sports";
                 const streamUrl = channel.stream_url || "";
@@ -22,27 +21,25 @@ export default async function handler(req, res) {
                 const keyId = channel.key_id || "";
                 const key = channel.key || "";
 
-                // Exact format string building as requested
-                let channelLine = `#EXTINF:-1 group-title="${group}" -1 tvg-id="${id}" tvg-logo="${logo}",${name}`;
+                // 1. EXTINF Line (Har channel ki shuruat yahin se hogi)
+                m3uContent += `#EXTINF:-1 group-title="${group}" tvg-id="${id}" tvg-logo="${logo}",${name}\n`;
 
-                // DRM Key properties (agar available hain)
+                // 2. DRM Key properties (agar available hain)
                 if (keyId && key) {
-                    channelLine += `#KODIPROP:inputstream.adaptive.license_type=clearkey`;
-                    channelLine += `#KODIPROP:inputstream.adaptive.license_key=${keyId}:${key}`;
+                    m3uContent += `#KODIPROP:inputstream.adaptive.license_type=clearkey\n`;
+                    m3uContent += `#KODIPROP:inputstream.adaptive.license_key=${keyId}:${key}\n`;
                 }
 
-                // User Agent property
-                channelLine += `#KODIPROP:http-user-agent=plaYtv/7.1.5 (Linux;Android 15) ExoPlayerLib/2.11.6`;
+                // 3. User Agent property
+                m3uContent += `#KODIPROP:http-user-agent=plaYtv/7.1.5 (Linux;Android 15) ExoPlayerLib/2.11.6\n`;
 
-                // Cookie / EXTHTTP header (agar cookie available hai)
+                // 4. Cookie / EXTHTTP header (agar cookie available hai)
                 if (cookie) {
-                    channelLine += `#EXTHTTP:{"Cookie":"${cookie}"}`;
+                    m3uContent += `#EXTHTTP:{"Cookie":"${cookie}"}\n`;
                 }
 
-                // Final Stream URL attached at the end of the line
-                channelLine += `${streamUrl}\n`;
-
-                m3uContent += channelLine;
+                // 5. Final Stream URL (Nayi line par)
+                m3uContent += `${streamUrl}\n`;
             });
         }
 
