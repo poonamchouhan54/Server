@@ -2,7 +2,7 @@ const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
     // Aap yahan multiple JSON URLs bhi add kar sakte hain agar zaroorat ho
-    const jsonUrl = "https://sonujson-v3.pages.dev/Data/sports.json"; 
+    const jsonUrl = "https://wispy-wave-3131.diwij76343.workers.dev/"; 
 
     try {
         const response = await fetch(jsonUrl);
