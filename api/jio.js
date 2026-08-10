@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
-    const jsonUrl = "https://sonujson-v3.pages.dev/Data/sports.json"; 
+    const jsonUrl = "https://wispy-wave-3131.diwij76343.workers.dev/"; 
 
     try {
         const response = await fetch(jsonUrl);
@@ -22,10 +22,9 @@ export default async function handler(req, res) {
                 const name = channel.name || "";
                 let streamUrl = channel.stream_url || channel.url || "";
 
-                // Skip if name or streamUrl is missing
                 if (!name || !streamUrl) return;
 
-                // **FIX:** URL ke piche ke query parameters (?__hdnea__=...) ko hataane ke liye taaki URL clean rahe
+                // URL clean karein (query parameters hatakar)
                 streamUrl = streamUrl.split('?')[0];
 
                 const logo = channel.logo || `https://jiotv.catchup.cdn.jio.com/dare_images/images/${id}.png`;
@@ -34,24 +33,20 @@ export default async function handler(req, res) {
                 const keyId = channel.keyId || channel.key_id || "";
                 const key = channel.key || "";
 
-                // 1. EXTINF Line
+                // **MULTI-LINE FORMAT (Jaise neche wala working format hai)**
                 m3uContent += `#EXTINF:-1 group-title="${group}" tvg-id="${id}" tvg-logo="${logo}",${name}\n`;
 
-                // 2. DRM Key properties
                 if (keyId && key) {
                     m3uContent += `#KODIPROP:inputstream.adaptive.license_type=clearkey\n`;
                     m3uContent += `#KODIPROP:inputstream.adaptive.license_key=${keyId}:${key}\n`;
                 }
 
-                // 3. User Agent property
                 m3uContent += `#KODIPROP:http-user-agent=plaYtv/7.1.5 (Linux;Android 15) ExoPlayerLib/2.11.6\n`;
 
-                // 4. Cookie / EXTHTTP header
                 if (cookie) {
                     m3uContent += `#EXTHTTP:{"Cookie":"${cookie}"}\n`;
                 }
 
-                // 5. Final Clean Stream URL
                 m3uContent += `${streamUrl}\n`;
             });
         }
