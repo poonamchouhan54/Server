@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
-    const jsonUrl = "https://wispy-wave-3131.diwij76343.workers.dev/"; 
+    const jsonUrl = "https://binge-giotv.pages.dev/data/id.json"; 
 
     try {
         const response = await fetch(jsonUrl);
