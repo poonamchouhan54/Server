@@ -3,6 +3,8 @@
     { "source": "/api/code/:path*", "destination": "/api/code.js" },
     { "source": "/api/nc", "destination": "/api/nc" },
     { "source": "/nc", "destination": "/api/nc" },
+{ "source": "/api/ncc", "destination": "/api/ncc" },
+    { "source": "/ncc", "destination": "/api/ncc" },
     { "source": "/api/prsearch", "destination": "/api/prsearch" },
     { "source": "/search/(.*)", "destination": "/api/prsearch" },
     { "source": "/search", "destination": "/api/prsearch" },
