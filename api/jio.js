@@ -27,33 +27,34 @@ export default async function handler(req, res) {
                 // URL clean karein (query parameters hatakar)
                 const cleanStreamUrl = streamUrl.split('?')[0];
 
-                // Logo handle karne ka logic
+                // Logo handle karne ka absolute sahi tarika
                 let logo = channel.logo || "";
                 if (!logo) {
                     try {
+                        // URL ke path me se segments nikal lo (jaise /bpk-tv/Star_Sports_HD1_Hindi_BTS/WDVLive/index.mpd)
                         const urlPath = new URL(cleanStreamUrl).pathname;
-                        const pathSegments = urlPath.split('/').filter(Boolean);
+                        const segments = urlPath.split('/').filter(Boolean);
                         
-                        // Jo segment stream path me hai usko uthayein
+                        // Jo segment stream folder hai (jaise Star_Sports_HD1_Hindi_BTS) usko pakdo
                         let folderName = "";
-                        for (let segment of pathSegments) {
-                            if (segment.includes('Star') || segment.includes('Sports') || segment.includes('_HD') || segment.includes('_MOB') || segment.includes('_BTS')) {
-                                folderName = segment;
+                        for (let seg of segments) {
+                            if (seg.includes('_MOB') || seg.includes('_BTS') || seg.includes('_HD') || seg.includes('_SD') || seg.includes('_FHD') || seg.includes('_Live')) {
+                                folderName = seg;
                                 break;
                             }
                         }
-                        
-                        if (!folderName && pathSegments.length >= 2) {
-                            folderName = pathSegments[pathSegments.length - 3] || pathSegments[0];
+
+                        // Agar upar wala segment na mile to URL ka aakhri se pehla wala folder le lo
+                        if (!folderName && segments.length >= 2) {
+                            folderName = segments[segments.length - 2];
                         }
 
-                        // Extra words aur endings ko yaha clean kiya gaya hai taaki pura naam sahi aaye
+                        // Extra tags (_BTS, _MOB, _WDVLive, _Live) ko hata kar sirf main channel name bacha lo
                         let extractedName = folderName
-                            .replace(/(_BTS|_MOB|_HD|_SD|_FHD).*$/i, '')
+                            .replace(/(_BTS|_MOB|_WDVLive|_Live).*$/i, '')
                             .replace(/_WDVLive|_Live/gi, '');
 
-                        // Agar extraction me kuch chut jaye to channel name ka use karein
-                        if (!extractedName || extractedName.length < 3) {
+                        if (!extractedName) {
                             extractedName = name.replace(/[^a-zA-Z0-9_]/g, '_');
                         }
 
