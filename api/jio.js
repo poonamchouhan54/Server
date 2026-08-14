@@ -44,7 +44,7 @@ export default async function handler(req, res) {
                 const lowerName = name.toLowerCase();
                 const lowerCat = (channel.category || channel.group || "").toLowerCase();
                 
-                let group = "Jio Sports"; // Default sports rahega
+                let group = "Sports"; // Default sports rahega
                 
                 // Naye channels ke keywords yaha add kiye gaye hain
                 if (
@@ -65,7 +65,7 @@ export default async function handler(req, res) {
                     lowerName.includes('zee bangla') ||
                     lowerName.includes('jalsha')
                 ) {
-                    group = "Jio Kids";
+                    group = "Kids";
                 }
                 
                 const cookie = channel.cookie || "";
