@@ -1,4 +1,4 @@
-Const fetch = require('node-fetch');
+const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
     const jsonUrl = "https://sonujson-devloper.vercel.app/Data/sports.json"; 
@@ -25,15 +25,45 @@ export default async function handler(req, res) {
                 if (!name || !streamUrl) return;
 
                 // URL clean karein (query parameters hatakar)
-                streamUrl = streamUrl.split('?')[0];
+                const cleanStreamUrl = streamUrl.split('?')[0];
 
-                // **Logo Fallback Logic**
-                // Agar JSON mein logo hai toh theek, warna name/id se URL bana lein
-                let logo = channel.logo;
+                // Logo handle karne ka logic (Agar JSON me nahi hai tab)
+                let logo = channel.logo || "";
                 if (!logo) {
-                    // Channel name ya ID ko format karke name_img.png ke liye prepare karein
-                    const formattedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-                    logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${formattedName}.png`;
+                    try {
+                        // Stream URL se path extract karein (jaise: /bpk-tv/Ten_4_Telugu_MOB/WDVLive/index.mpd)
+                        const urlPath = new URL(cleanStreamUrl).pathname;
+                        const pathSegments = urlPath.split('/').filter(Boolean);
+                        
+                        // Aamtaur par stream path me folder name channel ka hota hai (jaise Ten_4_Telugu_MOB)
+                        let folderName = "";
+                        for (let segment of pathSegments) {
+                            if (segment.includes('_MOB') || segment.includes('_HD') || segment.includes('_SD')) {
+                                folderName = segment;
+                                break;
+                            }
+                        }
+                        
+                        // Agar specific segment nahi mila to fallback ke taur par second last ya relevant segment lein
+                        if (!folderName && pathSegments.length >= 2) {
+                            folderName = pathSegments[pathSegments.length - 3] || pathSegments[0];
+                        }
+
+                        // '_MOB', '_HD', ya aage ke extra parts ko remove karein taaki sirf exact name bache
+                        let extractedName = folderName
+                            .replace(/(_MOB|_HD|_SD|_FHD).*$/i, '')
+                            .replace(/_WDVLive|_Live/gi, '');
+
+                        if (!extractedName) {
+                            extractedName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+                        }
+
+                        logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${extractedName}.png`;
+                    } catch (e) {
+                        // Agar URL parse karne me error aaye to channel name ya ID use karein
+                        const fallbackName = name.replace(/[^a-zA-Z0-9_]/g, '_');
+                        logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${fallbackName}.png`;
+                    }
                 }
 
                 const group = channel.category || channel.group || "Sports";
@@ -55,7 +85,7 @@ export default async function handler(req, res) {
                     m3uContent += `#EXTHTTP:{"Cookie":"${cookie}"}\n`;
                 }
 
-                m3uContent += `${streamUrl}\n`;
+                m3uContent += `${cleanStreamUrl}\n`;
             });
         }
 
