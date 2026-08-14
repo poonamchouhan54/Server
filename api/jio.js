@@ -40,10 +40,28 @@ export default async function handler(req, res) {
                     }
                 }
 
-                // --- GROUP LOGIC ---
-                // Agar category ya group mein 'Kids' word hai to Jio Kids, warna Jio Sports
-                const cat = (channel.category || channel.group || "").toLowerCase();
-                const group = cat.includes('kids') ? "Jio Kids" : "Jio Sports";
+                // --- SMART GROUP LOGIC ---
+                // Channel ke naam ya category me check karenge ki kids channel hai ya nahi
+                const lowerName = name.toLowerCase();
+                const lowerCat = (channel.category || channel.group || "").toLowerCase();
+                
+                let group = "Jio Sports"; // Default sports rahega
+                
+                if (
+                    lowerCat.includes('kid') || 
+                    lowerCat.includes('cartoon') || 
+                    lowerName.includes('nick') || 
+                    lowerName.includes('pogo') || 
+                    lowerName.includes('disney') || 
+                    lowerName.includes('sonic') || 
+                    lowerName.includes('yay') || 
+                    lowerName.includes('hungama') || 
+                    lowerName.includes('cartoon network') || 
+                    lowerName.includes('Discovery Kids') ||
+                    lowerName.includes('dabangg')
+                ) {
+                    group = "Jio Kids";
+                }
                 
                 const cookie = channel.cookie || "";
                 const keyId = channel.keyId || channel.key_id || "";
