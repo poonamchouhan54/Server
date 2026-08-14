@@ -24,53 +24,32 @@ export default async function handler(req, res) {
 
                 if (!name || !streamUrl) return;
 
-                // URL clean karein (query parameters hatakar)
                 const cleanStreamUrl = streamUrl.split('?')[0];
 
-                // Logo handle karne ka absolute sahi tarika
+                // Logo Logic
                 let logo = channel.logo || "";
                 if (!logo) {
                     try {
-                        // URL ke path me se segments nikal lo (jaise /bpk-tv/Star_Sports_HD1_Hindi_BTS/WDVLive/index.mpd)
                         const urlPath = new URL(cleanStreamUrl).pathname;
                         const segments = urlPath.split('/').filter(Boolean);
-                        
-                        // Jo segment stream folder hai (jaise Star_Sports_HD1_Hindi_BTS) usko pakdo
-                        let folderName = "";
-                        for (let seg of segments) {
-                            if (seg.includes('_MOB') || seg.includes('_BTS') || seg.includes('_HD') || seg.includes('_SD') || seg.includes('_FHD') || seg.includes('_Live')) {
-                                folderName = seg;
-                                break;
-                            }
-                        }
-
-                        // Agar upar wala segment na mile to URL ka aakhri se pehla wala folder le lo
-                        if (!folderName && segments.length >= 2) {
-                            folderName = segments[segments.length - 2];
-                        }
-
-                        // Extra tags (_BTS, _MOB, _WDVLive, _Live) ko hata kar sirf main channel name bacha lo
-                        let extractedName = folderName
-                            .replace(/(_BTS|_MOB|_WDVLive|_Live).*$/i, '')
-                            .replace(/_WDVLive|_Live/gi, '');
-
-                        if (!extractedName) {
-                            extractedName = name.replace(/[^a-zA-Z0-9_]/g, '_');
-                        }
-
+                        let folderName = segments.find(seg => /_MOB|_BTS|_HD|_SD|_FHD|_Live/i.test(seg)) || segments[segments.length - 2];
+                        let extractedName = folderName ? folderName.replace(/(_BTS|_MOB|_WDVLive|_Live).*$/i, '') : name.replace(/[^a-zA-Z0-9_]/g, '_');
                         logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${extractedName}.png`;
                     } catch (e) {
-                        const fallbackName = name.replace(/[^a-zA-Z0-9_]/g, '_');
-                        logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${fallbackName}.png`;
+                        logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${name.replace(/[^a-zA-Z0-9_]/g, '_')}.png`;
                     }
                 }
 
-                const group = channel.category || channel.group || "Sports";
+                // --- GROUP LOGIC ---
+                // Agar category ya group mein 'Kids' word hai to Jio Kids, warna Jio Sports
+                const cat = (channel.category || channel.group || "").toLowerCase();
+                const group = cat.includes('kids') ? "Jio Kids" : "Jio Sports";
+                
                 const cookie = channel.cookie || "";
                 const keyId = channel.keyId || channel.key_id || "";
                 const key = channel.key || "";
 
-                // **MULTI-LINE FORMAT**
+                // M3U Content
                 m3uContent += `#EXTINF:-1 group-title="${group}" tvg-id="${id}" tvg-logo="${logo}",${name}\n`;
 
                 if (keyId && key) {
