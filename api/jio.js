@@ -27,40 +27,38 @@ export default async function handler(req, res) {
                 // URL clean karein (query parameters hatakar)
                 const cleanStreamUrl = streamUrl.split('?')[0];
 
-                // Logo handle karne ka logic (Agar JSON me nahi hai tab)
+                // Logo handle karne ka logic
                 let logo = channel.logo || "";
                 if (!logo) {
                     try {
-                        // Stream URL se path extract karein (jaise: /bpk-tv/Ten_4_Telugu_MOB/WDVLive/index.mpd)
                         const urlPath = new URL(cleanStreamUrl).pathname;
                         const pathSegments = urlPath.split('/').filter(Boolean);
                         
-                        // Aamtaur par stream path me folder name channel ka hota hai (jaise Ten_4_Telugu_MOB)
+                        // Jo segment stream path me hai usko uthayein
                         let folderName = "";
                         for (let segment of pathSegments) {
-                            if (segment.includes('_MOB') || segment.includes('_HD') || segment.includes('_SD')) {
+                            if (segment.includes('Star') || segment.includes('Sports') || segment.includes('_HD') || segment.includes('_MOB') || segment.includes('_BTS')) {
                                 folderName = segment;
                                 break;
                             }
                         }
                         
-                        // Agar specific segment nahi mila to fallback ke taur par second last ya relevant segment lein
                         if (!folderName && pathSegments.length >= 2) {
                             folderName = pathSegments[pathSegments.length - 3] || pathSegments[0];
                         }
 
-                        // '_MOB', '_HD', ya aage ke extra parts ko remove karein taaki sirf exact name bache
+                        // Extra words aur endings ko yaha clean kiya gaya hai taaki pura naam sahi aaye
                         let extractedName = folderName
-                            .replace(/(_MOB|_HD|_SD|_FHD).*$/i, '')
+                            .replace(/(_BTS|_MOB|_HD|_SD|_FHD).*$/i, '')
                             .replace(/_WDVLive|_Live/gi, '');
 
-                        if (!extractedName) {
+                        // Agar extraction me kuch chut jaye to channel name ka use karein
+                        if (!extractedName || extractedName.length < 3) {
                             extractedName = name.replace(/[^a-zA-Z0-9_]/g, '_');
                         }
 
                         logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${extractedName}.png`;
                     } catch (e) {
-                        // Agar URL parse karne me error aaye to channel name ya ID use karein
                         const fallbackName = name.replace(/[^a-zA-Z0-9_]/g, '_');
                         logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${fallbackName}.png`;
                     }
