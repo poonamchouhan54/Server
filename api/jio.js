@@ -1,4 +1,4 @@
-const fetch = require('node-fetch');
+Const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
     const jsonUrl = "https://sonujson-devloper.vercel.app/Data/sports.json"; 
@@ -27,13 +27,21 @@ export default async function handler(req, res) {
                 // URL clean karein (query parameters hatakar)
                 streamUrl = streamUrl.split('?')[0];
 
-                const logo = channel.logo || `https://jiotv.catchup.cdn.jio.com/dare_images/images/${id}.png`;
+                // **Logo Fallback Logic**
+                // Agar JSON mein logo hai toh theek, warna name/id se URL bana lein
+                let logo = channel.logo;
+                if (!logo) {
+                    // Channel name ya ID ko format karke name_img.png ke liye prepare karein
+                    const formattedName = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    logo = `https://jiotv.catchup.cdn.jio.com/dare_images/images/${formattedName}.png`;
+                }
+
                 const group = channel.category || channel.group || "Sports";
                 const cookie = channel.cookie || "";
                 const keyId = channel.keyId || channel.key_id || "";
                 const key = channel.key || "";
 
-                // **MULTI-LINE FORMAT (Jaise neche wala working format hai)**
+                // **MULTI-LINE FORMAT**
                 m3uContent += `#EXTINF:-1 group-title="${group}" tvg-id="${id}" tvg-logo="${logo}",${name}\n`;
 
                 if (keyId && key) {
