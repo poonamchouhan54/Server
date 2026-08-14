@@ -41,12 +41,12 @@ export default async function handler(req, res) {
                 }
 
                 // --- SMART GROUP LOGIC ---
-                // Channel ke naam ya category me check karenge ki kids channel hai ya nahi
                 const lowerName = name.toLowerCase();
                 const lowerCat = (channel.category || channel.group || "").toLowerCase();
                 
                 let group = "Jio Sports"; // Default sports rahega
                 
+                // Naye channels ke keywords yaha add kiye gaye hain
                 if (
                     lowerCat.includes('kid') || 
                     lowerCat.includes('cartoon') || 
@@ -57,8 +57,13 @@ export default async function handler(req, res) {
                     lowerName.includes('yay') || 
                     lowerName.includes('hungama') || 
                     lowerName.includes('cartoon network') || 
-                    lowerName.includes('Discovery Kids') ||
-                    lowerName.includes('dabangg')
+                    lowerName.includes('discovery') || 
+                    lowerName.includes('dabangg') ||
+                    lowerName.includes('sony aath') ||
+                    lowerName.includes('unique tv') ||
+                    lowerName.includes('colors bangla') ||
+                    lowerName.includes('zee bangla') ||
+                    lowerName.includes('jalsha')
                 ) {
                     group = "Jio Kids";
                 }
