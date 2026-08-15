@@ -1,7 +1,7 @@
 const fetch = require('node-fetch');
 
 export default async function handler(req, res) {
-    const jsonUrl = "https://sonujson-devloper.vercel.app/Data/sports.json"; 
+    const jsonUrl = "https://sonujson-v3.pages.dev/Data/sports.json"; 
 
     try {
         const response = await fetch(jsonUrl);
