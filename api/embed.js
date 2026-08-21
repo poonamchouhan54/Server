@@ -36,28 +36,24 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
         
-        let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
-        const host = `https://${hostHeader}`;
-        
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
         if (!play) {
             let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
             }
         }
         
-        // --- PLAY MODE (Ab yeh direct Speedostream ka Embed URL return/redirect karega) ---
+        // --- PLAY MODE ---
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
 
-            // Server ab fetch nahi karega, seedha Embed URL par redirect kar dega taaki WebView isko load kar sake
             return res.redirect(302, embedUrl);
         }
 
@@ -80,7 +76,6 @@ module.exports = async (req, res) => {
         const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
         const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
         
-        // Headers suffix me abhi bhi rakha hai agar app ko zaroorat ho, par ab playLink seedha embed link banega ya app handle karega
         let playlist = "#EXTM3U\n";
 
         const mlItems = htmlContent.split('class="ml-item"');
@@ -112,7 +107,8 @@ module.exports = async (req, res) => {
                             const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
-                                const playLink = `${host}/${embedId}.m3u8`;
+                                // Ab yahan seedha Speedostream ka direct real embed link banega!
+                                const playLink = `${cleanStreamBase}/embed-${embedId}.html`;
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
                             }
