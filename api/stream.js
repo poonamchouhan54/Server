@@ -55,8 +55,8 @@ module.exports = async (req, res) => {
 
         const source = await streamRes.text();
         
-        // Sirf HTML source code ko text ki tarah browser par dikha do
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        // Yahan 'text/plain' kiya hai taaki browser usko render na kare, balki poora HTML code text ki tarah dikhaye
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(200).send(source);
 
     } catch (err) {
