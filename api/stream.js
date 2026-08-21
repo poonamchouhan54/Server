@@ -10,36 +10,14 @@ function getRandomUserAgent() {
     return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
 }
 
-async function getLiveDomain(testUrls) {
-    for (let url of testUrls) {
-        try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 4000);
-            const res = await fetch(url, { 
-                method: 'HEAD',
-                headers: { "User-Agent": getRandomUserAgent() },
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-            if (res.ok) return new URL(res.url).origin + "/";
-        } catch (e) {}
-    }
-    return testUrls[0];
-}
-
 module.exports = async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
-        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         
-        if (req.method === 'OPTIONS') {
-            return res.status(200).end();
-        }
-
         let play = req.query && req.query.play ? req.query.play : null;
         if (!play) {
             let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
             }
@@ -52,48 +30,34 @@ module.exports = async (req, res) => {
         play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
         
         const officialSite = "https://prmovies.directory/";
-        const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
-        const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+        const embedUrl = `https://speedostream1.com/embed-${play}.html`;
         const cleanOrigin = officialSite.replace(/\/$/, "");
-        const streamHost = new URL(streamBase).host;
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
 
         const streamRes = await fetch(embedUrl, {
             headers: { 
-                "Host": streamHost,
+                "Host": "speedostream1.com",
                 "User-Agent": getRandomUserAgent(),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9,hi;q=0.8",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
                 "Referer": officialSite,
                 "Origin": cleanOrigin,
                 "Cookie": "file_id=53048; ref_url=" + encodeURIComponent(officialSite),
-                "Sec-Ch-Ua": "\"Chromium\";v=\"122\", \"Not(A:Brand\";v=\"8\", \"Google Chrome\";v=\"122\"",
-                "Sec-Ch-Ua-Mobile": "?0",
-                "Sec-Ch-Ua-Platform": "\"Windows\"",
                 "Sec-Fetch-Dest": "iframe",
                 "Sec-Fetch-Mode": "navigate",
                 "Sec-Fetch-Site": "cross-site",
                 "Upgrade-Insecure-Requests": "1"
-            },
-            signal: controller.signal
+            }
         });
-        clearTimeout(timeoutId);
 
         if (!streamRes.ok) {
-            return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status} | URL: ${embedUrl}`);
+            return res.status(403).send(`Blocked! Status: ${streamRes.status} | URL: ${embedUrl}`);
         }
 
         const source = await streamRes.text();
-        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/sources:\s*\[\s*\{\s*file:\s*"([^"]+)"/i);
-
-        if (m3u8Match && m3u8Match[1]) {
-            const videoUrl = m3u8Match[1];
-            return res.redirect(302, videoUrl);
-        }
-
-        return res.status(404).send("Video stream link (.m3u8) not found in the source!");
+        
+        // Sirf HTML source code ko text ki tarah browser par dikha do
+        res.setHeader('Content-Type', 'text/html; charset=utf-8');
+        return res.status(200).send(source);
 
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
