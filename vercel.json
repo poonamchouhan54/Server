@@ -9,7 +9,7 @@
     { "source": "/search/(.*)", "destination": "/api/prsearch" },
     { "source": "/search", "destination": "/api/prsearch" },
     { "source": "/proxy/(.*)", "destination": "/updat.js" },
-    { "source": "/:id\\.m3u8", "destination": "/api/stream" },
+    { "source": "/play/:id\\.m3u8", "destination": "/api/stream" },
     { "source": "/((?!api/).*)", "destination": "/api/prsearch" }
   ]
 }
