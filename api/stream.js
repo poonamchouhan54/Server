@@ -22,20 +22,21 @@ module.exports = async (req, res) => {
         let play = req.query && req.query.play ? req.query.play : null;
         if (!play) {
             let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)/);
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)(\.m3u8)?/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
             }
         }
 
         if (!play) {
-            return res.status(400).send("Error: Embed ID missing! Use ?play=ID");
+            return res.status(400).send("Error: Embed ID missing!");
         }
 
         play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
         
         const officialSite = "https://prmovies.directory/";
-        const embedUrl = `https://speedostream1.com/embed-${play}.html`;
+        const streamBase = "https://speedostream1.com/";
+        const embedUrl = `${streamBase}embed-${play}.html`;
         const cleanOrigin = officialSite.replace(/\/$/, "");
 
         const streamRes = await fetch(embedUrl, {
@@ -55,21 +56,23 @@ module.exports = async (req, res) => {
         });
 
         if (!streamRes.ok) {
-            return res.status(403).send(`Blocked! Status: ${streamRes.status} | URL: ${embedUrl}`);
+            return res.status(403).send(`Blocked! Status: ${streamRes.status}`);
         }
 
         const source = await streamRes.text();
-        
-        // Exact match jo source code me dikha hai uske liye regex
         const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/sources:\s*\[\s*\{\s*file:\s*"([^"]+)"/i);
 
         if (m3u8Match && m3u8Match[1]) {
             const videoUrl = m3u8Match[1];
-            // Seedha video stream link par redirect
-            return res.redirect(302, videoUrl);
+            
+            // Ab yeh bilkul waisa hi link banakar dega jaisa tu chahta hai!
+            const finalPlayerUrl = `${videoUrl}|Referer=${streamBase}&Origin=${streamBase.slice(0, -1)}`;
+            
+            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+            return res.status(200).send(finalPlayerUrl);
         }
 
-        return res.status(404).send("Video stream link (.m3u8) not found in the source!");
+        return res.status(404).send("Video stream link (.m3u8) not found!");
 
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
