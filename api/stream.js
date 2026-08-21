@@ -46,7 +46,7 @@ module.exports = async (req, res) => {
         }
 
         if (!play) {
-            return res.status(400).send("Error: Embed ID missing!");
+            return res.status(400).send("Error: Embed ID missing! Use ?play=ID");
         }
 
         play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
@@ -91,7 +91,6 @@ module.exports = async (req, res) => {
 
         return res.status(404).send("Video stream link (.m3u8) not found in the source!");
 
-    } cmirror (err) {
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
         return res.status(500).send("ERROR: " + err.message);
