@@ -36,7 +36,7 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
         
-        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/account/page/4/';
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://watchomovies.monster/';
         
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
