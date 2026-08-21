@@ -64,12 +64,8 @@ module.exports = async (req, res) => {
 
         if (m3u8Match && m3u8Match[1]) {
             const videoUrl = m3u8Match[1];
-            
-            // Ab yeh bilkul waisa hi link banakar dega jaisa tu chahta hai!
-            const finalPlayerUrl = `${videoUrl}|Referer=${streamBase}&Origin=${streamBase.slice(0, -1)}`;
-            
-            res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-            return res.status(200).send(finalPlayerUrl);
+            // Seedha asli .m3u8 link par redirect maar dega bina kisi extra text ke
+            return res.redirect(302, videoUrl);
         }
 
         return res.status(404).send("Video stream link (.m3u8) not found!");
