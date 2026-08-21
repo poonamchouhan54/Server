@@ -1,5 +1,22 @@
 const fetch = require('node-fetch');
 
+// Random IP generate karne ka function taaki IP ban ya rate limit bypass ho jaye
+function getRandomIP() {
+    const r = () => Math.floor(Math.random() * 254) + 1;
+    return `${r()}.${r()}.${r()}.${r()}`;
+}
+
+const USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+];
+
+function getRandomUserAgent() {
+    return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
 module.exports = async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
@@ -27,21 +44,20 @@ module.exports = async (req, res) => {
         const officialSite = "https://prmovies.directory/";
         const streamBase = "https://speedostream1.com/";
         const embedUrl = `${streamBase}embed-${play}.html`;
+        const fakeIP = getRandomIP();
 
-        // Real browser ki tarah headers bhejna taaki block na kare
         const streamRes = await fetch(embedUrl, {
             headers: { 
                 "Host": "speedostream1.com",
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                "User-Agent": getRandomUserAgent(),
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
                 "Accept-Language": "en-US,en;q=0.9",
-                "Accept-Encoding": "gzip, deflate, br",
                 "Referer": officialSite,
                 "Origin": "https://prmovies.directory",
+                // Yeh headers speedostream ko batayenge ki request alag-alag jagah se aa rahi hai
+                "X-Forwarded-For": fakeIP,
+                "Client-IP": fakeIP,
                 "Cookie": "file_id=53048; ref_url=" + encodeURIComponent(officialSite),
-                "Sec-Ch-Ua": '"Google Chrome";v="123", "Not:A-Brand";v="8", "Chromium";v="123"',
-                "Sec-Ch-Ua-Mobile": "?0",
-                "Sec-Ch-Ua-Platform": '"Windows"',
                 "Sec-Fetch-Dest": "iframe",
                 "Sec-Fetch-Mode": "navigate",
                 "Sec-Fetch-Site": "cross-site",
@@ -50,7 +66,7 @@ module.exports = async (req, res) => {
         });
 
         if (!streamRes.ok) {
-            return res.status(403).send(`Speedostream Blocked Request! Status: ${streamRes.status}`);
+            return res.status(403).send(`Blocked! Status: ${streamRes.status} | IP used: ${fakeIP}`);
         }
 
         const source = await streamRes.text();
@@ -61,7 +77,7 @@ module.exports = async (req, res) => {
             return res.redirect(302, videoUrl);
         }
 
-        return res.status(404).send("Video stream link (.m3u8) not found in source!");
+        return res.status(404).send("Video stream link (.m3u8) not found!");
 
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
