@@ -1,9 +1,9 @@
 const fetch = require('node-fetch');
 
 const USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.3.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0"
 ];
 
 function getRandomUserAgent() {
@@ -50,7 +50,7 @@ module.exports = async (req, res) => {
             }
         }
         
-        // --- PLAY MODE (Extracts .m3u8 and redirects) ---
+        // --- PLAY MODE ---
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
@@ -58,23 +58,23 @@ module.exports = async (req, res) => {
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
             const cleanOrigin = officialSite.replace(/\/$/, "");
+            const streamHost = new URL(streamBase).host;
 
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 8000);
 
             const streamRes = await fetch(embedUrl, {
                 headers: { 
-                    "Host": new URL(streamBase).host,
-                    "Connection": "keep-alive",
-                    "Cache-Control": "max-age=0",
+                    "Host": streamHost,
                     "User-Agent": getRandomUserAgent(),
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
+                    "Accept-Language": "en-US,en;q=0.9",
                     "Referer": officialSite,
                     "Origin": cleanOrigin,
                     "Sec-Fetch-Dest": "iframe",
                     "Sec-Fetch-Mode": "navigate",
                     "Sec-Fetch-Site": "cross-site",
-                    "Accept-Language": "en-US,en;q=0.9"
+                    "Upgrade-Insecure-Requests": "1"
                 },
                 signal: controller.signal
             });
@@ -86,8 +86,8 @@ module.exports = async (req, res) => {
 
             const source = await streamRes.text();
             
-            // Regex se .m3u8 direct video stream link extract karein
-            const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+            // Fixed Regex to match sources: [{file:"..."}] pattern from source code
+            const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/sources:\s*\[\s*\{\s*file:\s*"([^"]+)"/i);
 
             if (m3u8Match && m3u8Match[1]) {
                 const videoUrl = m3u8Match[1];
@@ -147,7 +147,6 @@ module.exports = async (req, res) => {
                             const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
-                                // Player ke liye link ab direct .m3u8 format mein banega
                                 const playLink = `${host}/${embedId}.m3u8${headersuffix}`;
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
