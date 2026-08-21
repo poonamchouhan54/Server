@@ -1,20 +1,30 @@
 const fetch = require('node-fetch');
 
-// Random IP generate karne ka function taaki IP ban ya rate limit bypass ho jaye
-function getRandomIP() {
-    const r = () => Math.floor(Math.random() * 254) + 1;
-    return `${r()}.${r()}.${r()}.${r()}`;
-}
-
 const USER_AGENTS = [
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Safari/605.1.15",
-    "Mozilla/5.0 (X11; Linux x86_64; rv:124.0) Gecko/20100101 Firefox/124.0",
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0"
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.2.1 Safari/605.1.15",
+    "Mozilla/5.0 (X11; Linux x86_64; rv:121.0) Gecko/20100101 Firefox/121.0"
 ];
 
 function getRandomUserAgent() {
     return USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)];
+}
+
+async function getLiveDomain(testUrls) {
+    for (let url of testUrls) {
+        try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 4000);
+            const res = await fetch(url, { 
+                method: 'HEAD',
+                headers: { "User-Agent": getRandomUserAgent() },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.ok) return new URL(res.url).origin + "/";
+        } catch (e) {}
+    }
+    return testUrls[0];
 }
 
 module.exports = async (req, res) => {
@@ -25,62 +35,98 @@ module.exports = async (req, res) => {
         if (req.method === 'OPTIONS') {
             return res.status(200).end();
         }
-
+        
+        let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
+        const host = `https://${hostHeader}`;
+        
         let play = req.query && req.query.play ? req.query.play : null;
+        let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
+        
         if (!play) {
             let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/play\/([a-zA-Z0-9]+)(\.m3u8)?/);
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
             }
         }
+        
+        // --- PLAY MODE (Ab yeh direct Speedostream ka Embed URL return/redirect karega) ---
+        if (play) {
+            play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
+            
+            const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+            const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
 
-        if (!play) {
-            return res.status(400).send("Error: Embed ID missing!");
+            // Server ab fetch nahi karega, seedha Embed URL par redirect kar dega taaki WebView isko load kar sake
+            return res.redirect(302, embedUrl);
         }
 
-        play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
-        
-        const officialSite = "https://prmovies.directory/";
-        const streamBase = "https://speedostream1.com/";
-        const embedUrl = `${streamBase}embed-${play}.html`;
-        const fakeIP = getRandomIP();
+        // --- LIST / SEARCH MODE ---
+        const targetBaseUrl = 'https://bold-darkness-d959.poonamchouhan076.workers.dev/?site=https://prmovies.directory/';
+        let targetUrl = targetBaseUrl;
+        if (searchQuery) {
+            targetUrl = `${targetBaseUrl}?s=${encodeURIComponent(searchQuery)}`;
+        }
 
-        const streamRes = await fetch(embedUrl, {
-            headers: { 
-                "Host": "speedostream1.com",
-                "User-Agent": getRandomUserAgent(),
-                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
-                "Accept-Language": "en-US,en;q=0.9",
-                "Referer": officialSite,
-                "Origin": "https://prmovies.directory",
-                // Yeh headers speedostream ko batayenge ki request alag-alag jagah se aa rahi hai
-                "X-Forwarded-For": fakeIP,
-                "Client-IP": fakeIP,
-                "Cookie": "file_id=53048; ref_url=" + encodeURIComponent(officialSite),
-                "Sec-Fetch-Dest": "iframe",
-                "Sec-Fetch-Mode": "navigate",
-                "Sec-Fetch-Site": "cross-site",
-                "Upgrade-Insecure-Requests": "1"
-            }
+        const htmlRes = await fetch(targetUrl, {
+            headers: { "User-Agent": getRandomUserAgent() }
         });
 
-        if (!streamRes.ok) {
-            return res.status(403).send(`Blocked! Status: ${streamRes.status} | IP used: ${fakeIP}`);
+        if (!htmlRes.ok) {
+            throw new Error(`Target worker returned status ${htmlRes.status}`);
         }
 
-        const source = await streamRes.text();
-        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/sources:\s*\[\s*\{\s*file:\s*"([^"]+)"/i);
+        const htmlContent = await htmlRes.text();
+        const streamBaseLive = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
+        const cleanStreamBase = streamBaseLive.replace(/\/$/, "");
+        
+        // Headers suffix me abhi bhi rakha hai agar app ko zaroorat ho, par ab playLink seedha embed link banega ya app handle karega
+        let playlist = "#EXTM3U\n";
 
-        if (m3u8Match && m3u8Match[1]) {
-            const videoUrl = m3u8Match[1];
-            return res.redirect(302, videoUrl);
+        const mlItems = htmlContent.split('class="ml-item"');
+
+        for (let index = 0; index < mlItems.length; index++) {
+            if (index === 0) continue;
+            const item = mlItems[index];
+
+            const hrefMatch = item.match(/<a\s+href="([^"]+)"/);
+            const imgMatch = item.match(/data-original="([^"]+)"/);
+            const titleMatch = item.match(/<h2>([\s\S]*?)<\/h2>/);
+
+            if (titleMatch && hrefMatch) {
+                const title = titleMatch[1].trim();
+                const movieHref = hrefMatch[1];
+
+                if (searchQuery && !title.toLowerCase().includes(searchQuery)) {
+                    continue;
+                }
+
+                try {
+                    const detailRes = await fetch(movieHref, {
+                        headers: { "User-Agent": getRandomUserAgent() }
+                    });
+                    if (detailRes.ok) {
+                        const detailHtml = await detailRes.text();
+                        const iframeMatch = detailHtml.match(/<iframe[^>]+src="([^"]+)"/i);
+                        if (iframeMatch && iframeMatch[1]) {
+                            const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
+                            if (idMatch && idMatch[1]) {
+                                const embedId = idMatch[1];
+                                const playLink = `${host}/${embedId}.m3u8`;
+                                const logo = imgMatch ? imgMatch[1] : '';
+                                playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
+                            }
+                        }
+                    }
+                } catch (err) {}
+            }
         }
 
-        return res.status(404).send("Video stream link (.m3u8) not found!");
+        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+        return res.status(200).send(playlist);
 
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(500).send("ERROR: " + err.message);
+        return res.status(200).send("#EXTM3U\n#ERROR: " + err.message);
     }
 };
