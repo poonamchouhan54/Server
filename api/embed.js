@@ -36,12 +36,15 @@ module.exports = async (req, res) => {
             return res.status(200).end();
         }
         
+        let hostHeader = (req.headers && req.headers.host) ? req.headers.host : 'localhost';
+        const host = `https://${hostHeader}`;
+        
         let play = req.query && req.query.play ? req.query.play : null;
         let searchQuery = req.query && req.query.q ? req.query.q.trim().toLowerCase() : '';
         
         if (!play) {
             let urlPath = req.url || '';
-            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)/);
+            const matchId = urlPath.match(/\/([a-zA-Z0-9]+)\.m3u8/);
             if (matchId && matchId[1]) {
                 play = matchId[1];
             }
@@ -51,10 +54,46 @@ module.exports = async (req, res) => {
         if (play) {
             play = play.split('|')[0].split('?')[0].replace('.m3u8', '').replace('.html', '').replace(/^\/+/, '').trim();
             
+            const officialSite = "https://prmovies.directory/";
             const streamBase = await getLiveDomain(["https://speedostream1.com/", "https://speedostream.com/"]);
             const embedUrl = `${streamBase.replace(/\/$/, "")}/embed-${play}.html`;
+            const cleanOrigin = officialSite.replace(/\/$/, "");
 
-            return res.redirect(302, embedUrl);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+
+            const streamRes = await fetch(embedUrl, {
+                headers: { 
+                    "Host": new URL(streamBase).host,
+                    "Connection": "keep-alive",
+                    "Cache-Control": "max-age=0",
+                    "User-Agent": getRandomUserAgent(),
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+                    "Referer": officialSite,
+                    "Origin": cleanOrigin,
+                    "Sec-Fetch-Dest": "iframe",
+                    "Sec-Fetch-Mode": "navigate",
+                    "Sec-Fetch-Site": "cross-site",
+                    "Accept-Language": "en-US,en;q=0.9"
+                },
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            if (!streamRes.ok) {
+                return res.status(403).send(`Blocked or Forbidden! Server status: ${streamRes.status} | URL: ${embedUrl}`);
+            }
+
+            const source = await streamRes.text();
+            
+            const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i);
+
+            if (m3u8Match && m3u8Match[1]) {
+                const videoUrl = m3u8Match[1];
+                return res.redirect(302, videoUrl);
+            }
+
+            return res.status(404).send("Video stream link (.m3u8) not found in the source!");
         }
 
         // --- LIST / SEARCH MODE ---
@@ -107,8 +146,10 @@ module.exports = async (req, res) => {
                             const idMatch = iframeMatch[1].match(/embed-([a-zA-Z0-9]+)\.html/i);
                             if (idMatch && idMatch[1]) {
                                 const embedId = idMatch[1];
-                                // Ab yahan seedha Speedostream ka direct real embed link banega!
+                                
+                                // YAHAN BADLAAV KIYA HAI: .m3u8 ki jagah seedha embed link bna diya hai
                                 const playLink = `${cleanStreamBase}/embed-${embedId}.html`;
+                                
                                 const logo = imgMatch ? imgMatch[1] : '';
                                 playlist += `#EXTINF:-1 tvg-logo="${logo}" group-title="✨New Movies",${title}\n${playLink}\n`;
                             }
