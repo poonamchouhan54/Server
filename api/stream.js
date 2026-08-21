@@ -13,7 +13,12 @@ function getRandomUserAgent() {
 module.exports = async (req, res) => {
     try {
         res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
         
+        if (req.method === 'OPTIONS') {
+            return res.status(200).end();
+        }
+
         let play = req.query && req.query.play ? req.query.play : null;
         if (!play) {
             let urlPath = req.url || '';
@@ -55,9 +60,16 @@ module.exports = async (req, res) => {
 
         const source = await streamRes.text();
         
-        // Yahan 'text/plain' kiya hai taaki browser usko render na kare, balki poora HTML code text ki tarah dikhaye
-        res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-        return res.status(200).send(source);
+        // Exact match jo source code me dikha hai uske liye regex
+        const m3u8Match = source.match(/file:\s*"([^"]+\.m3u8[^"]*)"/i) || source.match(/sources:\s*\[\s*\{\s*file:\s*"([^"]+)"/i);
+
+        if (m3u8Match && m3u8Match[1]) {
+            const videoUrl = m3u8Match[1];
+            // Seedha video stream link par redirect
+            return res.redirect(302, videoUrl);
+        }
+
+        return res.status(404).send("Video stream link (.m3u8) not found in the source!");
 
     } catch (err) {
         res.setHeader('Content-Type', 'text/plain; charset=utf-8');
