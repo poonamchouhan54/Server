@@ -10,10 +10,12 @@ export default async function handler(req, res) {
         $('.A10').each((i, el) => {
             const title = $(el).find('.row-title').text().trim();
             const link = $(el).find('a').attr('href');
+            const img = $(el).find('img').attr('src'); // Yahan se image URL uthega
             
             if (title && link) {
                 const fullUrl = `https://filmyfly.green${link}`;
-                m3uContent += `#EXTINF:-1 group-title="🎥 Filmy Fly",${title}\n${fullUrl}\n`;
+                // tvg-logo tag add kar diya hai taaki image show ho
+                m3uContent += `#EXTINF:-1 tvg-logo="${img}" group-title="🎥 Filmy Fly",${title}\n${fullUrl}\n`;
             }
         });
 
