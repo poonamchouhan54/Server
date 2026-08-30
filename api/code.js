@@ -13,8 +13,8 @@ module.exports = async (req, res) => {
         let embedId = fileName.split('.')[0]; 
 
         // Hamesha official site ko referer rakhein taaki stream block na ho
-        let referer = "https://watchomovies.monster/";
-        let origin = "https://watchomovies.monster";
+        let referer = "https://watchomovies.forum/";
+        let origin = "https://watchomovies.forum/";
 
         if (!embedId) {
             return res.status(400).send("Embed ID is missing!");
