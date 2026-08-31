@@ -11,7 +11,7 @@ export default async function handler(req, res) {
     const url1 = "https://mainplaylist.poonamchouhan076.workers.dev/";
     const url3 = "https://wandering-morning-5534.poonamchouhan076.workers.dev/";
     const url4 = "https://upcominge-dawn-7c6bve.poonamchouhan076.workers.dev/";
-    const url5 = "https://fancode4-smoke-85a1.poonamchouhan076.workers.dev/";
+    const url5 = "https://fancode-art-c9de.poonamchouhan076.workers.dev/";
     const url6 = "https://sonyliv-event-5e05.poonamchouhan076.workers.dev/";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
