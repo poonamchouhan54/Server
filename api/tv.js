@@ -13,6 +13,7 @@ export default async function handler(req, res) {
     const url4 = "https://upcominge-dawn-7c6bve.poonamchouhan076.workers.dev/";
     const url5 = "https://sonyliv-event-5e05.poonamchouhan076.workers.dev/";
     const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
+const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
@@ -52,11 +53,12 @@ export default async function handler(req, res) {
     };
 
     const responses = await Promise.all([
-      fetchWithTimeout(url1, 6000),
-      fetchWithTimeout(url3, 10000),
-      fetchWithTimeout(url4, 6000),
-      fetchWithTimeout(url5, 6000),
-      fetchWithTimeout(url6, 6000),
+      fetchWithTimeout(url1, 60000),
+      fetchWithTimeout(url3, 100000),
+      fetchWithTimeout(url4, 60000),
+      fetchWithTimeout(url5, 60000),
+      fetchWithTimeout(url6, 60000),
+fetchWithTimeout(url7, 30000),
     ]);
 
     if (!responses[0]) {
