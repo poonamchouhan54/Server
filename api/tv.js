@@ -15,6 +15,7 @@ const url5 = "https://sony-live-new2026.poonamchouhan076.workers.dev/";
     const url6 = "https://star-sports-images.prtstream.workers.dev/";
     const url7 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
 const url8 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
+    const url9 = "https://raw.githubusercontent.com/poonamchouhan54/Zee-channel-/refs/heads/main/output/zee_channels.m3u";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
@@ -61,6 +62,7 @@ const url8 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
       fetchWithTimeout(url6, 60000),
 fetchWithTimeout(url7, 30000),
 fetchWithTimeout(url8, 30000),
+      fetchWithTimeout(url9, 30000),
     ]);
 
     if (!responses[0]) {
