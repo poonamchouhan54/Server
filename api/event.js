@@ -1,10 +1,8 @@
-const http = require('http');
-const PORT = process.env.PORT || 10000;
-
 const JSON_URL = "https://lingering-surf-17b2.prtstream.workers.dev/";
 const PLAYLIST_URL = "https://mainplaylist.poonamchouhan076.workers.dev/";
 
-const server = http.createServer(async (req, res) => {
+export default async function handler(req, res) {
+  // Vercel par route check
   if (req.url === '/' || req.url === '/check') {
     try {
       // 1. Dono URLs se data fetch karo
@@ -46,7 +44,7 @@ const server = http.createServer(async (req, res) => {
             // Group-title change karo
             modifiedBlock = modifiedBlock.replace(/group-title="[^"]*"/, 'group-title="✨✦ʟɪᴠᴇ ᴇᴠᴇɴᴛꜱ✦✨"');
 
-            // Title ko JSON wale live match title se replace karo (pehli line ke comma ke baad)
+            // Title ko JSON wale live match title se replace karo
             const firstLineEnd = modifiedBlock.indexOf('\n');
             const metaLine = firstLineEnd !== -1 ? modifiedBlock.substring(0, firstLineEnd) : modifiedBlock;
             const commaIndex = metaLine.indexOf(',');
@@ -56,26 +54,21 @@ const server = http.createServer(async (req, res) => {
               modifiedBlock = prefix + info.title + modifiedBlock.substring(metaLine.length);
             }
 
-            // Poora block (license keys, cookies, URL ke sath) final list mein jodo
             finalLivePlaylist += modifiedBlock + "\n\n";
           }
         }
       }
 
       // 4. Final valid M3U playlist return karo
-      res.writeHead(200, { "Content-Type": "audio/x-mpegurl; charset=utf-8" });
-      res.end(finalLivePlaylist);
+      res.setHeader("Content-Type", "audio/x-mpegurl; charset=utf-8");
+      return res.status(200).send(finalLivePlaylist);
 
     } catch (err) {
-      res.writeHead(500, { "Content-Type": "text/plain" });
-      res.end("Error generating playlist: " + err.message);
+      res.setHeader("Content-Type", "text/plain");
+      return res.status(500).send("Error generating playlist: " + err.message);
     }
   } else {
-    res.writeHead(404, { "Content-Type": "text/plain" });
-    res.end("Not Found");
+    res.setHeader("Content-Type", "text/plain");
+    return res.status(404).send("Not Found");
   }
-});
-
-server.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
+}
