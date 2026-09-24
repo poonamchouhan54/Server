@@ -63,6 +63,7 @@ module.exports = async (req, res) => {
             <head>
 <meta name="monetag" content="1f9b83fda535fa71dc9560d6011fc032">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>(function(s){s.dataset.zone='11881869',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
                 <title>Verification Code</title>
                 <style>
                     body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding-top: 50px; }
