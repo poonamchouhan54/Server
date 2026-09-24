@@ -61,6 +61,7 @@ module.exports = async (req, res) => {
             <!DOCTYPE html>
             <html>
             <head>
+<meta name="monetag" content="1f9b83fda535fa71dc9560d6011fc032">
                 <meta name="viewport" content="width=device-width, initial-scale=1.0">
                 <title>Verification Code</title>
                 <style>
