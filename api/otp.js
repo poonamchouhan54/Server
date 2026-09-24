@@ -66,18 +66,49 @@ module.exports = async (req, res) => {
                 <style>
                     body { background: #121212; color: #fff; font-family: sans-serif; text-align: center; padding-top: 50px; }
                     .box { background: #1e1e1e; padding: 25px; border-radius: 12px; display: inline-block; border: 2px solid #ff0000; box-shadow: 0 4px 15px rgba(255,0,0,0.3); }
+.ad-container { margin: 15px auto; text-align: center; }
+
                     h2 { color: #ff0000; margin-bottom: 10px; }
                     .code { font-size: 36px; font-weight: bold; color: #00ff00; margin: 20px 0; letter-spacing: 3px; background: #000; padding: 10px; border-radius: 8px; }
                     p { color: #aaa; font-size: 14px; line-height: 1.5; }
                 </style>
             </head>
             <body>
+<!-- Top Banner Ad -->
+    <div class="ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '31391402',
+                'format' : 'banner',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/31391402/invoke.js"></script>
+    </div>
                 <div class="box">
+    
+
                     <h2>VERIFICATION CODE</h2>
                     <p>Apna yeh code copy karein aur app me enter karein:</p>
                     <div class="code">${randomCode}</div>
                     <p>⚠️ Yeh code ek baar generate ho chuka hai.</p>
                 </div>
+    <!-- Bottom Banner Ad -->
+    <div class="ad-container">
+        <script type="text/javascript">
+            atOptions = {
+                'key' : '31391402',
+                'format' : 'banner',
+                'height' : 50,
+                'width' : 320,
+                'params' : {}
+            };
+        </script>
+        <script type="text/javascript" src="//www.highperformanceformat.com/31391402/invoke.js"></script>
+    </div>
+
             </body>
             </html>
         `);
