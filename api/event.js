@@ -2,68 +2,162 @@ const JSON_URL = "https://lingering-surf-17b2.prtstream.workers.dev/";
 const PLAYLIST_URL = "https://mainplaylist.poonamchouhan076.workers.dev/";
 
 export default async function handler(req, res) {
-  // Yahan condition hata di hai taaki koi bhi request aaye, seedha playlist generate ho jaye
-  try {
-    // 1. Dono URLs se data fetch karo
-    const [jsonRes, playlistRes] = await Promise.all([
-      fetch(JSON_URL).then(r => r.json()),
-      fetch(PLAYLIST_URL).then(r => r.text())
-    ]);
+try {
+// 1. Dono URLs se data fetch karo
+const [jsonRes, playlistRes] = await Promise.all([
+fetch(JSON_URL).then(r => {
+if (!r.ok) throw new Error("JSON fetch failed: " + r.status);
+return r.json();
+}),
+fetch(PLAYLIST_URL).then(r => {
+if (!r.ok) throw new Error("Playlist fetch failed: " + r.status);
+return r.text();
+})
+]);
 
-    const channelsData = jsonRes;
-    const playlistText = playlistRes;
+const channelsData = jsonRes;
+const playlistText = playlistRes;
 
-    // 2. Playlist ko #EXTINF se blocks mein tod lo taaki har channel ka poora data sath rahe
-    const parts = playlistText.split('#EXTINF:');
-    let blocks = parts.slice(1).map(block => '#EXTINF:' + block);
+// 2. Playlist ko channel blocks mein divide karo
+const parts = playlistText.split('#EXTINF:');
+const blocks = parts.slice(1).map(block => '#EXTINF:' + block);
 
-    let finalLivePlaylist = "#EXTM3U\n";
+let finalLivePlaylist = "#EXTM3U\n";
 
-    // 3. Sirf live channels ke blocks ko match karke add karo
-    for (const [key, info] of Object.entries(channelsData)) {
-      if (info.status === 'live' && info.title) {
-        let matchedBlock = blocks.find(block => {
-          const lowerBlock = block.toLowerCase();
-          const searchKey = info.channel_name.toLowerCase();
-          
-          if (searchKey.includes("star sports 1 hd") && lowerBlock.includes("star sports 1 digital")) return true;
-          if (searchKey.includes("star sports 1 hindi hd") && lowerBlock.includes("star sports 1 hindi digital")) return true;
-          if (searchKey.includes("star sports 2 hd") && lowerBlock.includes("star sports 2 digital")) return true;
-          if (searchKey.includes("star sports 2 hindi hd") && lowerBlock.includes("star sports hindi 2 hd digital")) return true;
-          if (searchKey.includes("star sports 3") && (lowerBlock.includes("star sports 3 [ digital ]") || lowerBlock.includes("star sports 3"))) return true;
-          if (searchKey.includes("select 1") && lowerBlock.includes("star sports select 1 digital")) return true;
-          if (searchKey.includes("select 2") && lowerBlock.includes("star sports select 2 digital")) return true;
-          
-          return lowerBlock.includes(searchKey.replace("hd", "").trim());
-        });
+// 3. Channel matching function
+function findChannel(searchKey, excludeDigital = false) {
+  const key = searchKey.toLowerCase().trim();
 
-        if (matchedBlock) {
-          let modifiedBlock = matchedBlock.trim();
+  return blocks.find(block => {
+    const lowerBlock = block.toLowerCase();
 
-          // Group-title change karo
-          modifiedBlock = modifiedBlock.replace(/group-title="[^"]*"/, 'group-title="✨✦ʟɪᴠᴇ ᴇᴠᴇɴᴛꜱ✦✨"');
+    // Channel ke naam wala hissa hi check karo
+    const firstLine = lowerBlock.split(/\r?\n/)[0];
+    const commaIndex = firstLine.indexOf(',');
 
-          // Title ko JSON wale live match title se replace karo
-          const firstLineEnd = modifiedBlock.indexOf('\n');
-          const metaLine = firstLineEnd !== -1 ? modifiedBlock.substring(0, firstLineEnd) : modifiedBlock;
-          const commaIndex = metaLine.indexOf(',');
-          
-          if (commaIndex !== -1) {
-            const prefix = metaLine.substring(0, commaIndex + 1);
-            modifiedBlock = prefix + info.title + modifiedBlock.substring(metaLine.length);
-          }
+    const channelName = (
+      commaIndex !== -1
+        ? firstLine.substring(commaIndex + 1)
+        : firstLine
+    ).trim();
 
-          finalLivePlaylist += modifiedBlock + "\n\n";
-        }
-      }
+    // Digital channel ko pehli search mein skip karo
+    if (excludeDigital && channelName.includes("digital")) {
+      return false;
     }
 
-    // 4. Final valid M3U playlist return karo
-    res.setHeader("Content-Type", "audio/x-mpegurl; charset=utf-8");
-    return res.status(200).send(finalLivePlaylist);
+    // Special channel name matching
+    if (key.includes("star sports 1 hindi hd") &&
+        channelName.includes("star sports 1 hindi")) {
+      return true;
+    }
 
-  } catch (err) {
-    res.setHeader("Content-Type", "text/plain");
-    return res.status(500).send("Error generating playlist: " + err.message);
+    if (key.includes("star sports 1 hd") &&
+        channelName.includes("star sports 1")) {
+      return true;
+    }
+
+    if (key.includes("star sports 2 hindi hd") &&
+        channelName.includes("star sports hindi 2")) {
+      return true;
+    }
+
+    if (key.includes("star sports 2 hd") &&
+        channelName.includes("star sports 2")) {
+      return true;
+    }
+
+    if (key.includes("star sports 3") &&
+        channelName.includes("star sports 3")) {
+      return true;
+    }
+
+    if (key.includes("select 1") &&
+        channelName.includes("star sports select 1")) {
+      return true;
+    }
+
+    if (key.includes("select 2") &&
+        channelName.includes("star sports select 2")) {
+      return true;
+    }
+
+    // General matching: HD hata kar naam match karo
+    const normalizedKey = key
+      .replace(/\bhd\b/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return channelName.includes(normalizedKey);
+  });
+}
+
+// 4. Sirf live channels process karo
+for (const [key, info] of Object.entries(channelsData)) {
+  if (info.status !== "live" || !info.title || !info.channel_name) {
+    continue;
   }
+
+  const searchKey = info.channel_name.toLowerCase();
+
+  // Pehle bina Digital wala channel dhoondho
+  let matchedBlock = findChannel(searchKey, true);
+
+  // Bina Digital wala na mile, tabhi Digital wala dhoondho
+  if (!matchedBlock) {
+    matchedBlock = findChannel(searchKey, false);
+  }
+
+  if (!matchedBlock) {
+    continue;
+  }
+
+  let modifiedBlock = matchedBlock.trim();
+
+  // 5. Group title replace karo
+  if (/group-title="[^"]*"/i.test(modifiedBlock)) {
+    modifiedBlock = modifiedBlock.replace(
+      /group-title="[^"]*"/i,
+      'group-title="✨✦ʟɪᴠᴇ ᴇᴠᴇɴᴛꜱ✦✨"'
+    );
+  }
+
+  // 6. Title ke shuru se Live- remove karo
+  const cleanTitle = info.title.replace(/^Live-/i, "").trim();
+
+  // 7. M3U entry mein title replace karo
+  const firstLineEnd = modifiedBlock.indexOf("\n");
+
+  const metaLine = firstLineEnd !== -1
+    ? modifiedBlock.substring(0, firstLineEnd)
+    : modifiedBlock;
+
+  const commaIndex = metaLine.indexOf(",");
+
+  if (commaIndex !== -1) {
+    const prefix = metaLine.substring(0, commaIndex + 1);
+
+    modifiedBlock =
+      prefix +
+      cleanTitle +
+      modifiedBlock.substring(metaLine.length);
+  }
+
+  // 8. Final playlist mein add karo
+  finalLivePlaylist += modifiedBlock + "\n\n";
+}
+
+// 9. Final M3U playlist return karo
+res.setHeader("Content-Type", "audio/x-mpegurl; charset=utf-8");
+
+return res.status(200).send(finalLivePlaylist);
+
+} catch (err) {
+res.setHeader("Content-Type", "text/plain; charset=utf-8");
+
+return res
+  .status(500)
+  .send("Error generating playlist: " + err.message);
+
+}
 }
