@@ -18,9 +18,9 @@ return r.text();
 const channelsData = jsonRes;
 const playlistText = playlistRes;
 
-// 2. Playlist ko channel blocks mein divide karo
-const parts = playlistText.split('#EXTINF:');
-const blocks = parts.slice(1).map(block => '#EXTINF:' + block);
+// 2. Playlist ko sahi tareeqe se channel blocks mein divide karo (Regex fix)
+const rawBlocks = playlistText.split(/(?=#EXTINF:)/g);
+const blocks = rawBlocks.filter(b => b.trim().startsWith('#EXTINF:'));
 
 let finalLivePlaylist = "#EXTM3U\n";
 
@@ -122,20 +122,20 @@ for (const [key, info] of Object.entries(channelsData)) {
     );
   }
 
-  // 6. Title ke shuru se Live- remove karo
+  // 6. Clean title jo JSON se aa raha hai
   const cleanTitle = info.title;
 
-  // 7. M3U entry mein title replace karo (Comma missing fix included)
+  // 7. M3U entry mein title replace karo (Robust parsing)
   const firstLineEnd = modifiedBlock.indexOf("\n");
 
   const metaLine = firstLineEnd !== -1
     ? modifiedBlock.substring(0, firstLineEnd)
     : modifiedBlock;
 
-  const commaIndex = metaLine.indexOf(",");
+  const commaIndex = metaLine.lastIndexOf(",");
 
-  if (commaIndex !== -1) {
-    // Agar comma pehle se present hai
+  if (commaIndex !== -1 && commaIndex > metaLine.indexOf("tvg-logo")) {
+    // Agar valid comma mil gaya jo logo ke baad hai
     const prefix = metaLine.substring(0, commaIndex + 1);
 
     modifiedBlock =
@@ -143,7 +143,7 @@ for (const [key, info] of Object.entries(channelsData)) {
       cleanTitle +
       modifiedBlock.substring(metaLine.length);
   } else {
-    // Agar comma missing hai, toh #KODIPROP se theek pehle comma lagakar title add kar do
+    // Agar comma missing ya galat jagah hai, toh #KODIPROP ya pehle tag se theek pehle lagao
     const tagMatchIndex = metaLine.indexOf("#KODIPROP");
     
     if (tagMatchIndex !== -1) {
@@ -153,6 +153,7 @@ for (const [key, info] of Object.entries(channelsData)) {
       const newMetaLine = prefix + "," + cleanTitle + tags;
       modifiedBlock = newMetaLine + modifiedBlock.substring(metaLine.length);
     } else {
+      // Agar koi extra tag nahi hai toh line ke ant mein comma lagakar title jod do
       modifiedBlock = metaLine + "," + cleanTitle + modifiedBlock.substring(metaLine.length);
     }
   }
