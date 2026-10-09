@@ -125,7 +125,7 @@ for (const [key, info] of Object.entries(channelsData)) {
   // 6. Title ke shuru se Live- remove karo
   const cleanTitle = info.title;
 
-  // 7. M3U entry mein title replace karo
+  // 7. M3U entry mein title replace karo (Comma missing fix included)
   const firstLineEnd = modifiedBlock.indexOf("\n");
 
   const metaLine = firstLineEnd !== -1
@@ -135,12 +135,26 @@ for (const [key, info] of Object.entries(channelsData)) {
   const commaIndex = metaLine.indexOf(",");
 
   if (commaIndex !== -1) {
+    // Agar comma pehle se present hai
     const prefix = metaLine.substring(0, commaIndex + 1);
 
     modifiedBlock =
       prefix +
       cleanTitle +
       modifiedBlock.substring(metaLine.length);
+  } else {
+    // Agar comma missing hai, toh #KODIPROP se theek pehle comma lagakar title add kar do
+    const tagMatchIndex = metaLine.indexOf("#KODIPROP");
+    
+    if (tagMatchIndex !== -1) {
+      const prefix = metaLine.substring(0, tagMatchIndex);
+      const tags = metaLine.substring(tagMatchIndex);
+      
+      const newMetaLine = prefix + "," + cleanTitle + tags;
+      modifiedBlock = newMetaLine + modifiedBlock.substring(metaLine.length);
+    } else {
+      modifiedBlock = metaLine + "," + cleanTitle + modifiedBlock.substring(metaLine.length);
+    }
   }
 
   // 8. Final playlist mein add karo
