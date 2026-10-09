@@ -123,7 +123,7 @@ for (const [key, info] of Object.entries(channelsData)) {
   }
 
   // 6. Title ke shuru se Live- remove karo
-  const cleanTitle = info.title.replace(/^Live-/i, "").trim();
+  const cleanTitle = info.title;
 
   // 7. M3U entry mein title replace karo
   const firstLineEnd = modifiedBlock.indexOf("\n");
