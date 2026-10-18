@@ -19,7 +19,7 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
     const url8 = "https://sony-live-new2026.poonamchouhan076.workers.dev/";
 const url9 = "https://star-sports-images.prtstream.workers.dev/";
-    const url10 = "https://raw.githubusercontent.com/poonamchouhan54/Zee-channel-/refs/heads/main/output/zee_channels.m3u";
+    const url10 = "";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
