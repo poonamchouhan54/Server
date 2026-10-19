@@ -18,7 +18,7 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
 
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
     const url8 = "https://sony-live-new2026.poonamchouhan076.workers.dev/";
-const url9 = "https://star-sports-images.prtstream.workers.dev/";
+const url9 = "https://raw.githubusercontent.com/Prtstream820894/Star-event-/refs/heads/main/playlist.m3u";
     const url10 = "";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
