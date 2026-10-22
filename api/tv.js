@@ -8,7 +8,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const url1 = "https://mainplaylist.poonamchouhan076.workers.dev/";
+    const url1 = "https://prtstream.vercel.app/api/mainss";
     const url3 = "https://raw.githubusercontent.com/Prtstream820894/Api/refs/heads/main/jtv_my.txt";
     const url4 = "https://upcominge-dawn-7c6bve.poonamchouhan076.workers.dev/";
 
