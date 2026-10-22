@@ -12,7 +12,7 @@ export default async function handler(req, res) {
     const url3 = "https://raw.githubusercontent.com/Prtstream820894/Api/refs/heads/main/jtv_my.txt";
     const url4 = "https://upcominge-dawn-7c6bve.poonamchouhan076.workers.dev/";
 
-const url5 = "";
+const url5 = "https://raw.githubusercontent.com/Prtstream820894/Liv/refs/heads/main/liv.m3u";
 const url6 = "https://sony-live-new2026.poonamchouhan076.workers.dev/";
 
 
