@@ -13,7 +13,7 @@ export default async function handler(req, res) {
     const url4 = "https://upcominge-dawn-7c6bve.poonamchouhan076.workers.dev/";
 
 const url5 = "https://raw.githubusercontent.com/Prtstream820894/Liv/refs/heads/main/liv.m3u";
-const url6 = "https://sony-live-new2026.poonamchouhan076.workers.dev/";
+const url6 = "";
 
 
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
