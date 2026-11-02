@@ -21,6 +21,8 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
 const url9 = "https://raw.githubusercontent.com/Prtstream820894/Star-event-/refs/heads/main/playlist.m3u";
     const url10 = "https://raw.githubusercontent.com/PRTSTREAM/Jiotv/refs/heads/main/playlist/sports.m3u";
 
+const url11 = "";
+
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
 
@@ -68,6 +70,7 @@ fetchWithTimeout(url7, 30000),
 fetchWithTimeout(url8, 30000),
       fetchWithTimeout(url9, 30000),
 fetchWithTimeout(url10, 30000),
+fetchWithTimeout(url11, 60000),
     ]);
 
     if (!responses[0]) {
