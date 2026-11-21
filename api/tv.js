@@ -22,6 +22,7 @@ const url9 = "https://server-iota-nine-71.vercel.app/api/event";
     const url10 = "https://raw.githubusercontent.com/PRTSTREAM/Jiotv/refs/heads/main/playlist/sports.m3u";
 
 const url11 = "https://prtstream.vercel.app/api/webhigh";
+const url12 = "https://raw.githubusercontent.com/poonamchouhan54/Livesx/refs/heads/main/live_events.m3u";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
@@ -71,6 +72,7 @@ fetchWithTimeout(url8, 30000),
       fetchWithTimeout(url9, 30000),
 fetchWithTimeout(url10, 30000),
 fetchWithTimeout(url11, 60000),
+fetchWithTimeout(url12, 60000),
     ]);
 
     if (!responses[0]) {
