@@ -19,7 +19,7 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
     const url8 = "https://toffybd-queen-b093.prtstream.workers.dev/";
 const url9 = "https://server-iota-nine-71.vercel.app/api/event";
-    const url10 = "https://raw.githubusercontent.com/sportlive18/Sonyliv-Playlist-Autoupdate/refs/heads/main/sony.m3u";
+    const url10 = "";
 
 const url11 = "https://prtstream.vercel.app/api/webhigh";
 const url12 = "https://raw.githubusercontent.com/poonamchouhan54/Livesx/refs/heads/main/live_events.m3u";
