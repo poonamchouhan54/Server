@@ -17,7 +17,7 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
 
 
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
-    const url8 = "https://toffybd-queen-b093.prtstream.workers.dev/";
+    const url8 = "";
 const url9 = "https://server-iota-nine-71.vercel.app/api/event";
     const url10 = "";
 
