@@ -22,7 +22,7 @@ const url9 = "https://server-iota-nine-71.vercel.app/api/event";
     const url10 = "";
 
 const url11 = "https://prtstream.vercel.app/api/webhigh";
-const url12 = "https://raw.githubusercontent.com/poonamchouhan54/Livesx/refs/heads/main/live_events.m3u";
+const url12 = "";
 
     const fetchWithTimeout = async (url, ms = 5000) => {
       if (!url) return "";
