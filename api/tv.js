@@ -19,7 +19,7 @@ const url6 = "https://billowing-fancode-1fec.poonamchouhan076.workers.dev/";
     const url7 = "https://primcricl-mud-e2d1.poonamchouhan076.workers.dev/";
     const url8 = "https://sport-events.poonamchouhan076.workers.dev/";
 const url9 = "https://server-iota-nine-71.vercel.app/api/event";
-    const url10 = "";
+    const url10 = "http://2nd.sm-monirul.top/@sm_iptv_bd/exp.php?tapmad=getPlaylist&sm=.m3u";
 
 const url11 = "https://prtstream.vercel.app/api/webhigh";
 const url12 = "https://raw.githubusercontent.com/poonamchouhan54/Livesx/main/cricket_events.m3u";
